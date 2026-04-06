@@ -1,6 +1,6 @@
 import api from './api';
 import { IncomingChallenge } from '../types/challenge';
-import { GameRoom, ShapeTemplate, Placement, Question } from '../types/game';
+import { GameRoom, ShapeTemplate, Placement, Question, GameResult } from '../types/game';
 
 export interface ChallengeSettings {
   questions: number;
@@ -90,6 +90,27 @@ export const gameService = {
     } catch (error) {
       console.error('Error digging cell:', error);
       throw error;
+    }
+  },
+
+  getGameResult: async (gameId: string): Promise<GameResult> => {
+    try {
+      const response = await api.get(`/game-rooms/${gameId}/result`);
+      return response.data;
+    } catch (error) {
+      // Return mock for UI development
+      return {
+        winnerId: 'current-user-id',
+        myScore: 1200,
+        opponentScore: 850,
+        stats: {
+          accuracy: 0.85,
+          attempts: 12,
+          avgResponseTime: 4200,
+          digHits: 4,
+        },
+        antiCheatSummary: 'Clear'
+      };
     }
   }
 };

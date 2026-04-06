@@ -26,6 +26,19 @@ export interface Question {
 
 export type CellState = 'HIDDEN' | 'REVEALED_HIT' | 'REVEALED_MISS' | 'MY_SHIP';
 
+export interface GameResult {
+  winnerId: string;
+  myScore: number;
+  opponentScore: number;
+  stats: {
+    accuracy: number;
+    attempts: number;
+    avgResponseTime: number; // In ms
+    digHits: number;
+  };
+  antiCheatSummary?: string;
+}
+
 export interface GameRoom {
   id: string;
   opponent: {
