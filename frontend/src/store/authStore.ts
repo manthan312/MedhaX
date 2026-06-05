@@ -1,11 +1,53 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import api from '../services/api';
 
-interface User {
+const tokenStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    if (Platform.OS === 'web') {
+      try {
+        return localStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    }
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      try {
+        localStorage.setItem(key, value);
+      } catch {}
+      return;
+    }
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch {}
+  },
+  deleteItem: async (key: string): Promise<void> => {
+    if (Platform.OS === 'web') {
+      try {
+        localStorage.removeItem(key);
+      } catch {}
+      return;
+    }
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch {}
+  }
+};
+
+export interface User {
   id: string;
   username: string;
   email: string;
+  avatar?: string;
+  elo?: number;
 }
 
 interface AuthState {
@@ -14,13 +56,13 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   login: (identifier: string, password: string) => Promise<void>;
   signup: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  
+
   // Helpers
   clearError: () => void;
 }
@@ -37,13 +79,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await api.post('/auth/login', { identifier, password });
       const { user, token } = response.data;
-      
-      await SecureStore.setItemAsync('auth_token', token);
+
+      await tokenStorage.setItem('auth_token', token);
       set({ user, token, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      set({ 
-        error: err.response?.data?.message || 'Login failed. Please check your credentials.', 
-        isLoading: false 
+      set({
+        error: err.response?.data?.message || 'Login failed. Please check your credentials.',
+        isLoading: false,
       });
       throw err;
     }
@@ -54,35 +96,36 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await api.post('/auth/signup', { username, email, password });
       const { user, token } = response.data;
-      
-      await SecureStore.setItemAsync('auth_token', token);
+
+      await tokenStorage.setItem('auth_token', token);
       set({ user, token, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      set({ 
-        error: err.response?.data?.message || 'Signup failed. Please try again.', 
-        isLoading: false 
+      set({
+        error: err.response?.data?.message || 'Signup failed. Please try again.',
+        isLoading: false,
       });
       throw err;
     }
   },
 
   logout: async () => {
-    await SecureStore.deleteItemAsync('auth_token');
+    await tokenStorage.deleteItem('auth_token');
     set({ user: null, token: null, isAuthenticated: false });
   },
 
   checkAuth: async () => {
-    const token = await SecureStore.getItemAsync('auth_token');
+    set({ isLoading: true });
+    const token = await tokenStorage.getItem('auth_token');
     if (token) {
       try {
-        // Optional: verify token with backend
-        const response = await api.get('/auth/me'); 
-        set({ user: response.data.user, token, isAuthenticated: true });
-      } catch (err) {
-        // Token invalid/expired
-        await SecureStore.deleteItemAsync('auth_token');
-        set({ user: null, token: null, isAuthenticated: false });
+        const response = await api.get('/auth/me');
+        set({ user: response.data.user, token, isAuthenticated: true, isLoading: false });
+      } catch {
+        await tokenStorage.deleteItem('auth_token');
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
       }
+    } else {
+      set({ isLoading: false });
     }
   },
 

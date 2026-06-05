@@ -1,7 +1,7 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from '../store/authStore';
 
-const API_BASE_URL = 'http://localhost:3000/api'; // Replace with actual backend URL
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://medhax-api-72177c54-e7fc-45e9-812e-ab418b203870.fly.dev/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -11,29 +11,28 @@ const api = axios.create({
   },
 });
 
-// Request Interceptor: Attach Token
-api.interceptors.request.use(async (config) => {
-  try {
-    const token = await SecureStore.getItemAsync('auth_token');
+// Request Interceptor: Attach JWT token from zustand authStore
+api.interceptors.request.use(
+  (config) => {
+    const token = useAuthStore.getState().token;
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-  } catch (error) {
-    console.error('Error fetching token from SecureStore', error);
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Response Interceptor: Handle errors globally
+// Response Interceptor: Global error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized (session expired)
-      // e.g., trigger a logout in the store or navigate to login
-      console.warn('Session expired. Please login again.');
+      console.warn('[API] 401 Unauthorized — session expired, logging out.');
+      useAuthStore.getState().logout();
+    }
+    if (error.response?.status === 429) {
+      console.warn('[API] 429 Rate limited.');
     }
     return Promise.reject(error);
   }

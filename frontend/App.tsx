@@ -7,9 +7,17 @@ import { useSocket } from './src/hooks/useSocket';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
 
+/**
+ * Inner wrapper so that useSocket() can use useNavigation()
+ * which requires being inside a NavigationContainer.
+ */
+const AppInner: React.FC = () => {
+  useSocket(); // Global real-time socket listener
+  return <AppNavigator />;
+};
+
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
-  useSocket(); // Global real-time events listener
 
   useEffect(() => {
     checkAuth();
@@ -25,7 +33,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <AppNavigator />
+      <AppInner />
       <StatusBar style="light" />
     </NavigationContainer>
   );

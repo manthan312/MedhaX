@@ -1,0 +1,169 @@
+import { Router, Request, Response } from 'express';
+import jwt from 'jsonwebtoken';
+import { insforgeAdmin } from '../config/insforge.js';
+import { JWT_SECRET } from '../config/env.js';
+
+const router = Router();
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isValidUUID = (v: string) => UUID_REGEX.test(v);
+
+// ─── GET /matches/history?userId= ────────────────────────────────────────────
+
+router.get('/history', async (req: Request, res: Response) => {
+  // Accept userId from query param OR from Bearer JWT token
+  let userId = req.query['userId'] as string | undefined;
+
+  if (!userId) {
+    // Try to extract from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as Record<string, any>;
+        userId = payload['sub'] ?? payload['id'];
+      } catch {
+        // Invalid token, fall through to error below
+      }
+    }
+  }
+
+  if (!userId || !isValidUUID(userId)) {
+    res.status(400).json({ message: 'userId is required (via query param or valid Bearer token)' });
+    return;
+  }
+
+  try {
+    // 1. Fetch match IDs for the user
+    const { data: playerMatches, error: pmError } = await insforgeAdmin.database
+      .from('match_players')
+      .select('match_id')
+      .eq('user_id', userId);
+
+    if (pmError) {
+      res.status(500).json({ message: pmError.message });
+      return;
+    }
+
+    const matchIds = (playerMatches ?? []).map(pm => pm.match_id);
+    if (matchIds.length === 0) {
+      res.json({ matches: [], playerHandles: {} });
+      return;
+    }
+
+    // 2. Fetch matches metadata
+    const { data: matchesData, error: mError } = await insforgeAdmin.database
+      .from('matches')
+      .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played')
+      .in('id', matchIds)
+      .order('started_at', { ascending: false })
+      .limit(50);
+
+    if (mError) {
+      res.status(500).json({ message: mError.message });
+      return;
+    }
+
+    const activeMatchIds = (matchesData ?? []).map(m => m.id);
+    if (activeMatchIds.length === 0) {
+      res.json({ matches: [], playerHandles: {} });
+      return;
+    }
+
+    // 3. Fetch all players and scores for these matches
+    const { data: allPlayersData, error: apError } = await insforgeAdmin.database
+      .from('match_players')
+      .select('match_id, user_id, final_score')
+      .in('match_id', activeMatchIds);
+
+    if (apError) {
+      res.status(500).json({ message: apError.message });
+      return;
+    }
+
+    // 4. Fetch handles for all players in these matches
+    const playerIds = new Set<string>();
+    for (const ap of allPlayersData ?? []) {
+      playerIds.add(ap.user_id);
+    }
+
+    const handlesMap: Record<string, string> = {};
+    if (playerIds.size > 0) {
+      const { data: usersData, error: usersError } = await insforgeAdmin.database
+        .from('users')
+        .select('id, handle')
+        .in('id', Array.from(playerIds));
+      if (!usersError && usersData) {
+        for (const u of usersData) {
+          handlesMap[u.id] = u.handle;
+        }
+      }
+    }
+
+    // 5. Map to expected structure for the frontend
+    const mappedMatches = (matchesData ?? []).map(m => {
+      const playersInMatch = (allPlayersData ?? []).filter(ap => ap.match_id === m.id);
+      const scores: Record<string, number> = {};
+      const pids: string[] = [];
+      for (const p of playersInMatch) {
+        pids.push(p.user_id);
+        scores[p.user_id] = p.final_score;
+      }
+
+      return {
+        id: m.id,
+        status: 'ended',
+        winner_id: m.winner_id,
+        config: {
+          language: m.language,
+          topic: m.topics?.[0] ?? '',
+          gridSize: m.grid_size ?? 5,
+          questionCount: m.rounds_played ?? 10
+        },
+        started_at: m.started_at,
+        ended_at: m.ended_at,
+        scores,
+        player_ids: pids
+      };
+    });
+
+    res.json({ matches: mappedMatches, playerHandles: handlesMap });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── GET /leaderboards?period=weekly|all-time ────────────────────────────────
+
+router.get('/leaderboards', async (req: Request, res: Response) => {
+  const period = (req.query['period'] as string | undefined) ?? 'all-time';
+
+  try {
+    let query = insforgeAdmin.database
+      .from('leaderboard')
+      .select('user_id, handle, wins, total_matches, win_rate')
+      .order('wins', { ascending: false })
+      .limit(100);
+
+    if (period === 'weekly') {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      query = insforgeAdmin.database
+        .from('leaderboard_weekly')
+        .select('user_id, handle, wins, total_matches, win_rate')
+        .gte('period_start', weekAgo)
+        .order('wins', { ascending: false })
+        .limit(100);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      res.status(500).json({ message: (error as any).message });
+      return;
+    }
+
+    res.json({ period, leaderboard: data ?? [] });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+export default router;

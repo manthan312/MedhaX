@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production build outputs
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+.expo/
+**/.expo/
+.vercel/
+**/.vercel/
+
+# Environment configurations and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Temporary / Cache / Log files
+*.log
+logs/
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+scratch/
+
+# IDE/Editor files
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# InsForge & Agent metadata
+.insforge
+.agent
+.agents
+.augment
+.claude
+.cline
+.Trae
+.roo
+.trae
+.windsurf
+.gemini/
+.github/copilot*
+.kilocode
+.qoder
+.qwen
+
+# TestSprite temp configs
+testsprite_tests/tmp/

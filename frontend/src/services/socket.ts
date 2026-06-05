@@ -1,68 +1,170 @@
 import { io, Socket } from 'socket.io-client';
-import * as SecureStore from 'expo-secure-store';
 
-const SOCKET_URL = 'http://localhost:3000'; // Replace with backend URL
+const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://medhax-api-72177c54-e7fc-45e9-812e-ab418b203870.fly.dev';
 
-class SocketService {
-  public socket: Socket | null = null;
+// ─── Typed Event Payloads ────────────────────────────────────────────────────
 
-  async connect() {
-    if (this.socket?.connected) return;
+export interface JoinLobbyPayload {
+  matchId?: string;
+  friendId?: string;
+}
 
-    const token = await SecureStore.getItemAsync('auth_token');
+export interface SendReadyPayload {
+  matchId: string;
+  language: string;
+  topics: string[];
+}
 
-    this.socket = io(SOCKET_URL, {
-      transports: ['websocket'],
-      autoConnect: true,
-      auth: { token },
-    });
+export interface LockPlacementPayload {
+  matchId: string;
+  placements: Array<{
+    shapeId: string;
+    anchor: { x: number; y: number };
+    cells: Array<{ x: number; y: number }>;
+  }>;
+}
 
-    this.socket.on('connect', () => {
-      console.log('Connected to socket server');
-    });
+export interface SubmitAnswerPayload {
+  matchId: string;
+  questionId: string;
+  answer: string;
+  timeToAnswerMs: number;
+}
 
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from socket server');
-    });
+export interface SubmitDigPayload {
+  matchId: string;
+  x: number;
+  y: number;
+}
+
+export interface RequestHintPayload {
+  matchId: string;
+  questionId: string;
+}
+
+// ─── Singleton Socket Service ────────────────────────────────────────────────
+
+let socketInstance: Socket | null = null;
+
+/**
+ * Initialize and connect the Socket.io singleton with JWT auth.
+ */
+export function initSocket(token: string): Socket {
+  if (socketInstance?.connected) {
+    return socketInstance;
   }
 
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
   }
 
-  emit(event: string, data: any) {
-    if (this.socket) {
-      this.socket.emit(event, data);
-    }
-  }
+  socketInstance = io(SOCKET_URL, {
+    transports: ['websocket'],
+    autoConnect: true,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    auth: { token },
+  });
 
-  /**
-   * Send non-blocking telemetry events for anti-cheat signaling.
-   */
-  emitTelemetry(signal: string, data: any) {
-    if (this.socket) {
-      this.socket.emit('telemetry_signal', {
-        signal,
-        data,
-        timestamp: Date.now(),
-      });
-    }
-  }
+  socketInstance.on('connect', () => {
+    console.log('[Socket] Connected — ID:', socketInstance?.id);
+  });
 
-  on(event: string, callback: (...args: any[]) => void) {
-    if (this.socket) {
-      this.socket.on(event, callback);
-    }
-  }
+  socketInstance.on('disconnect', (reason) => {
+    console.log('[Socket] Disconnected:', reason);
+  });
 
-  off(event: string) {
-    if (this.socket) {
-      this.socket.off(event);
-    }
+  socketInstance.on('connect_error', (err) => {
+    console.error('[Socket] Connection error:', err.message);
+  });
+
+  socketInstance.on('reconnect', (attempt) => {
+    console.log('[Socket] Reconnected after', attempt, 'attempts');
+  });
+
+  return socketInstance;
+}
+
+/**
+ * Return the current socket instance (or null if not initialized).
+ */
+export function getSocket(): Socket | null {
+  return socketInstance;
+}
+
+/**
+ * Cleanly disconnect the socket singleton.
+ */
+export function disconnectSocket(): void {
+  if (socketInstance) {
+    socketInstance.disconnect();
+    socketInstance = null;
+    console.log('[Socket] Disconnected and cleared.');
   }
 }
 
-export default new SocketService();
+// ─── Typed Event Emitters ────────────────────────────────────────────────────
+
+export function joinLobby(payload: JoinLobbyPayload): void {
+  socketInstance?.emit('lobby.join', payload);
+}
+
+export function sendReady(payload: SendReadyPayload): void {
+  socketInstance?.emit('lobby.ready', payload);
+}
+
+export function lockPlacement(payload: LockPlacementPayload): void {
+  socketInstance?.emit('placement.lock', payload);
+}
+
+export function submitAnswer(payload: SubmitAnswerPayload): void {
+  socketInstance?.emit('answer.submit', payload);
+}
+
+export function submitDig(payload: SubmitDigPayload): void {
+  socketInstance?.emit('dig.submit', payload);
+}
+
+export function requestHint(payload: RequestHintPayload): void {
+  socketInstance?.emit('hint.request', payload);
+}
+
+// ─── Legacy class-based wrapper (backward compat) ───────────────────────────
+class SocketServiceCompat {
+  get socket(): Socket | null {
+    return socketInstance;
+  }
+
+  async connect() {
+    // No-op; use initSocket(token) instead
+    console.warn('[SocketService] Use initSocket(token) from socket.ts instead.');
+  }
+
+  disconnect() {
+    disconnectSocket();
+  }
+
+  emit(event: string, data: unknown) {
+    socketInstance?.emit(event, data);
+  }
+
+  emitTelemetry(signal: string, data: unknown) {
+    socketInstance?.emit('telemetry_signal', {
+      signal,
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  on(event: string, callback: (...args: any[]) => void) {
+    socketInstance?.on(event, callback);
+  }
+
+  off(event: string) {
+    socketInstance?.off(event);
+  }
+}
+
+export default new SocketServiceCompat();

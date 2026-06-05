@@ -1,0 +1,47 @@
+[
+  {
+    "id": "TC001",
+    "title": "postapiauthsignupregisternewuser",
+    "description": "Test user registration with valid email, password, and username to receive 201 status with user profile and JWT token."
+  },
+  {
+    "id": "TC002",
+    "title": "postapiauthloginauthenticateuser",
+    "description": "Test user login with valid email and password to receive 200 status with user profile and JWT token."
+  },
+  {
+    "id": "TC003",
+    "title": "getapiauthmegetauthenticateduserprofile",
+    "description": "Test retrieval of authenticated user profile with valid JWT token to receive 200 status and user profile."
+  },
+  {
+    "id": "TC004",
+    "title": "getapiuserssearchsearchregisteredusers",
+    "description": "Test searching registered users by username with valid JWT token to receive 200 status and list of matching users."
+  },
+  {
+    "id": "TC005",
+    "title": "postapifriendsrequestsendfriendrequest",
+    "description": "Test sending a friend request to another user with valid JWT token and target user_id to receive 200 status and success message."
+  },
+  {
+    "id": "TC006",
+    "title": "postapifriendsrespondrespondtofriendrequest",
+    "description": "Test accepting or declining a pending friend request with valid JWT token, friendship_id, and status to receive 200 status and success message."
+  },
+  {
+    "id": "TC007",
+    "title": "getapifriendsgetfriendlistandrequests",
+    "description": "Test retrieving list of accepted friends and active requests with valid JWT token to receive 200 status and list of friendships."
+  },
+  {
+    "id": "TC008",
+    "title": "getapiusersonlinegetonlineusers",
+    "description": "Test retrieving list of online users with valid JWT token to receive 200 status and list of online users."
+  },
+  {
+    "id": "TC009",
+    "title": "getapimatcheshistorygethistoricalmatches",
+    "description": "Test fetching past matches for authenticated user with valid JWT token to receive 200 status and list of historical matches."
+  }
+]
