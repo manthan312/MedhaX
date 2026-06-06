@@ -496,7 +496,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         // Auto-place for any player who hasn't locked yet
         for (const pid of s.players) {
           if (!s.placementLocked[pid]) {
-            const autoShapes = generateShapesForGrid(s.config.gridSize);
+            const autoShapes = generateShapesForGrid(s.config.questionCount);
             const placed = placeShapes(autoShapes, s.config.gridSize);
             lockPlacement(s, pid, placed);
           }

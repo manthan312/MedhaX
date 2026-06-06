@@ -43,7 +43,8 @@ export default function PlacementPage() {
   const navigate = useNavigate();
 
   const gridSize = config?.gridSize || 5;
-  const targetCells = gridSize === 5 ? 13 : gridSize === 6 ? 19 : 26;
+  const questionCount = config?.questionCount || 10;
+  const targetCells = questionCount === 10 ? 6 : questionCount === 20 ? 12 : 18;
 
   const [placed, setPlaced] = useState<PlacedShape[]>([]);
   const [selectedShapeIdx, setSelectedShapeIdx] = useState(0);

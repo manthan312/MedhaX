@@ -188,8 +188,8 @@ export function placeShapes(shapes: Shape[], gridSize: number): PlacedShape[] {
  * Generate a set of shapes whose total cell count is exactly targetCells.
  * Randomly selects and optionally rotates/mirrors shapes from the catalog.
  */
-export function generateShapesForGrid(gridSize: number): Shape[] {
-  const targetCells = gridSize === 5 ? 13 : gridSize === 6 ? 19 : 26;
+export function generateShapesForGrid(questionCount: number): Shape[] {
+  const targetCells = questionCount === 10 ? 6 : questionCount === 20 ? 12 : 18;
   const catalog = [...SHAPE_CATALOG];
   const selected: Shape[] = [];
   let totalCells = 0;
