@@ -11,6 +11,7 @@ import LobbyPage from './pages/LobbyPage';
 import PlacementPage from './pages/PlacementPage';
 import GamePage from './pages/GamePage';
 import ResultsPage from './pages/ResultsPage';
+import ParticleBackground from './components/ParticleBackground';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -122,6 +123,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppBootstrap />
+      <ParticleBackground />
       <Routes>
         <Route path="/"          element={<LandingPage />} />
         <Route path="/login"     element={<PublicOnly><LoginPage /></PublicOnly>} />

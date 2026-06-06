@@ -1,5 +1,4 @@
-// ─── Match State Machine ──────────────────────────────────────────────────────
-import { PlacedShape } from './shapes.js';
+import { Shape, PlacedShape } from './shapes.js';
 import { Question } from '../data/questions.js';
 
 export type MatchStatus = 'lobby' | 'placement' | 'question' | 'dig' | 'ended';
@@ -9,6 +8,7 @@ export interface MatchConfig {
   topics: string[];
   gridSize: 5 | 6 | 7;
   questionCount: number;
+  gameMode?: 'grid';
 }
 
 export interface AnswerRecord {
@@ -35,6 +35,8 @@ export interface MatchState {
   disconnectTimers: Record<string, ReturnType<typeof setTimeout>>;
   readyPlayers: Set<string>;
   deadline?: number;
+
+  shapeTemplates?: Record<string, Shape[]>;          // userId -> custom generated shapes
 }
 
 // ─── In-memory match store ────────────────────────────────────────────────────
@@ -80,6 +82,8 @@ export function createMatch(
     startedAt: Date.now(),
     disconnectTimers: {},
     readyPlayers: new Set(),
+
+    shapeTemplates: {},
   };
   matches.set(matchId, state);
   return state;

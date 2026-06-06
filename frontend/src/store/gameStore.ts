@@ -41,6 +41,8 @@ interface GameState {
 
   // Timer (seconds remaining)
   timer: number;
+  placementDeadline: number | null;
+  questionDeadline: number | null;
 
   // Dig phase
   digTurn: boolean;               // true when it's my turn to dig
@@ -77,6 +79,8 @@ interface GameActions {
   updateScores: (scores: Record<string, number>) => void;
   addHint: (hint: string) => void;
   setTimer: (t: number) => void;
+  setPlacementDeadline: (ts: number | null) => void;
+  setQuestionDeadline: (ts: number | null) => void;
   endMatch: (result: MatchResult) => void;
   resetGame: () => void;
 
@@ -123,6 +127,8 @@ const defaultState: GameState = {
 
   scores: {},
   timer: 45,
+  placementDeadline: null,
+  questionDeadline: null,
 
   digTurn: false,
   digResult: null,
@@ -225,6 +231,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   addHint: (hint) => set((state) => ({ hints: [...state.hints, hint] })),
 
   setTimer: (t) => set({ timer: t }),
+
+  setPlacementDeadline: (ts) => set({ placementDeadline: ts }),
+  setQuestionDeadline: (ts) => set({ questionDeadline: ts }),
 
   endMatch: (matchResult) =>
     set({

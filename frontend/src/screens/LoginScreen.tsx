@@ -58,7 +58,7 @@ const LoginScreen = () => {
 
         <InputField
           name="identifier"
-          control={control}
+          control={control as any}
           label="Username or Email"
           placeholder="Enter your credentials"
           error={errors.identifier}
@@ -67,7 +67,7 @@ const LoginScreen = () => {
 
         <InputField
           name="password"
-          control={control}
+          control={control as any}
           label="Password"
           placeholder="Enter your password"
           secureTextEntry

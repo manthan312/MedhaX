@@ -266,6 +266,7 @@ const GameScreen: React.FC = () => {
     myAnswered,
     answerQuestion,
     receiveDigResult,
+    questionDeadline,
   } = useGameStore();
 
   const gridSize = config?.gridSize ?? 5;
@@ -287,12 +288,15 @@ const GameScreen: React.FC = () => {
     setOptionStates({});
     setAnswered(false);
     setWaitingForOpponent(false);
-    setTimer(questionLimit);
+
+    if (!questionDeadline) return;
 
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      setTimer(useGameStore.getState().timer - 1);
-      if (useGameStore.getState().timer <= 0) {
+      const msLeft = Math.max(0, questionDeadline - Date.now());
+      const secs = Math.ceil(msLeft / 1000);
+      setTimer(secs);
+      if (msLeft <= 0) {
         clearInterval(timerRef.current!);
         if (!useGameStore.getState().myAnswered) {
           showToast("⏱ Time's up!", 'info');
@@ -300,10 +304,10 @@ const GameScreen: React.FC = () => {
           setWaitingForOpponent(true);
         }
       }
-    }, 1000);
+    }, 100);
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [currentQuestion?.id]);
+  }, [currentQuestion?.id, questionDeadline]);
 
   // ── Score animation ───────────────────────────────────────────────────────
   useEffect(() => {

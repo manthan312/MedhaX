@@ -4,6 +4,8 @@
 export interface Cell {
   r: number;
   c: number;
+  x?: number;
+  y?: number;
 }
 
 export interface Shape {
@@ -184,34 +186,74 @@ export function placeShapes(shapes: Shape[], gridSize: number): PlacedShape[] {
   return placed;
 }
 
-/**
- * Generate a set of shapes whose total cell count is exactly targetCells.
- * Randomly selects and optionally rotates/mirrors shapes from the catalog.
- */
-export function generateShapesForGrid(gridSize: number): Shape[] {
-  const targetCells = gridSize === 5 ? 13 : gridSize === 6 ? 19 : 26;
-  const catalog = [...SHAPE_CATALOG];
-  const selected: Shape[] = [];
-  let totalCells = 0;
+export function generateRandomShape(size: number, id: string): Shape {
+  const cells: Cell[] = [];
+  cells.push({ r: 0, c: 0 });
+  const cellSet = new Set<string>(['0,0']);
 
-  let attempts = 0;
-  while (totalCells < targetCells && attempts < 1000) {
-    attempts++;
-    const base = catalog[Math.floor(Math.random() * catalog.length)]!;
-    
-    if (totalCells + base.cells.length > targetCells) {
-      continue;
+  const dr = [-1, 0, 1, 0];
+  const dc = [0, 1, 0, -1];
+
+  while (cells.length < size) {
+    const candidates: Cell[] = [];
+    for (const cell of cells) {
+      for (let d = 0; d < 4; d++) {
+        const nr = cell.r + dr[d]!;
+        const nc = cell.c + dc[d]!;
+        const key = `${nr},${nc}`;
+        if (!cellSet.has(key)) {
+          candidates.push({ r: nr, c: nc });
+        }
+      }
     }
 
-    let shape: Shape = { ...base, id: `${base.id}-${selected.length}-${Math.random()}` };
-    const transform = Math.floor(Math.random() * 4);
-    if (transform === 1) shape = rotateShape(shape);
-    else if (transform === 2) shape = mirrorShape(shape);
-    else if (transform === 3) shape = rotateShape(mirrorShape(shape));
+    if (candidates.length === 0) break;
 
-    selected.push(shape);
-    totalCells += shape.cells.length;
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)]!;
+    cells.push(chosen);
+    cellSet.add(`${chosen.r},${chosen.c}`);
   }
 
-  return selected;
+  // Normalize
+  const minR = Math.min(...cells.map(c => c.r));
+  const minC = Math.min(...cells.map(c => c.c));
+  const normalizedCells = cells.map(c => ({
+    r: c.r - minR,
+    c: c.c - minC,
+    y: c.r - minR, // row corresponds to y
+    x: c.c - minC  // column corresponds to x
+  })).sort((a, b) => a.r - b.r || a.c - b.c);
+
+  return {
+    id,
+    name: `Randomized Shape (${size})`,
+    cells: normalizedCells
+  };
+}
+
+export function generateRandomShapes(gridSize: number): Shape[] {
+  const targetCells = gridSize === 5 ? 13 : gridSize === 6 ? 19 : 26;
+  const shapes: Shape[] = [];
+  let remaining = targetCells;
+  let i = 0;
+
+  while (remaining > 0) {
+    if (remaining <= 6) {
+      const id = `rand-${remaining}-${i}-${Math.random().toString(36).substring(2, 6)}`;
+      shapes.push(generateRandomShape(remaining, id));
+      remaining = 0;
+    } else {
+      const size = Math.floor(Math.random() * 3) + 4; // size in [4, 5, 6]
+      const id = `rand-${size}-${i}-${Math.random().toString(36).substring(2, 6)}`;
+      shapes.push(generateRandomShape(size, id));
+      remaining -= size;
+    }
+    i++;
+  }
+
+  return shapes;
+}
+
+export function generateShapesForGrid(gridSize: number): Shape[] {
+  return generateRandomShapes(gridSize);
 }

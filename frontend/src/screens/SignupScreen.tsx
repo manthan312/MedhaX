@@ -60,7 +60,7 @@ const SignupScreen = () => {
 
         <InputField
           name="username"
-          control={control}
+          control={control as any}
           label="Username"
           placeholder="Choose a username"
           error={errors.username}
@@ -69,7 +69,7 @@ const SignupScreen = () => {
 
         <InputField
           name="email"
-          control={control}
+          control={control as any}
           label="Email"
           placeholder="Enter your email"
           error={errors.email}
@@ -79,7 +79,7 @@ const SignupScreen = () => {
 
         <InputField
           name="password"
-          control={control}
+          control={control as any}
           label="Password"
           placeholder="Create a password"
           secureTextEntry

@@ -9,10 +9,12 @@ import { PORT, JWT_SECRET } from './config/env.js';
 import authRouter from './routes/auth.js';
 import matchesRouter from './routes/matches.js';
 import { usersRouter, friendsRouter } from './routes/friends.js';
-import { registerMatchHandlers } from './sockets/matchSocket.js';
+import { registerMatchHandlers, clearMatchTimer, validateClientShapes, advanceToQuestion } from './sockets/matchSocket.js';
 import { onlineUsers } from './config/online.js';
 import { seedQuestions } from './data/seed.js';
 import { insforgeAdmin } from './config/insforge.js';
+import { getMatch, lockPlacement } from './game/matchState.js';
+import { generateRandomShapes } from './game/shapes.js';
 
 // ─── Express App ──────────────────────────────────────────────────────────────
 
@@ -46,6 +48,118 @@ app.use('/api/auth',    authRouter);
 app.use('/api/matches', matchesRouter);
 app.use('/api/users',   usersRouter);
 app.use('/api/friends', friendsRouter);
+
+// ─── Game Rooms Routes (Mobile Client support) ───────────────────────────────
+
+app.get('/api/game-rooms/:matchId/shapes', async (req, res) => {
+  const { matchId } = req.params;
+  let userId: string | undefined;
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as Record<string, any>;
+      userId = payload['sub'] ?? payload['id'];
+    } catch {
+      // Invalid token
+    }
+  }
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const state = getMatch(matchId);
+  if (!state) {
+    res.status(404).json({ message: 'Match not found' });
+    return;
+  }
+
+  // Generate on the fly if not exists
+  if (!state.shapeTemplates) {
+    state.shapeTemplates = {};
+  }
+  if (!state.shapeTemplates[userId]) {
+    state.shapeTemplates[userId] = generateRandomShapes(state.config.gridSize);
+  }
+
+  res.json(state.shapeTemplates[userId]);
+});
+
+app.post('/api/game-rooms/:matchId/placement', async (req, res) => {
+  const { matchId } = req.params;
+  const { placements } = req.body;
+  let userId: string | undefined;
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(authHeader.slice(7), JWT_SECRET) as Record<string, any>;
+      userId = payload['sub'] ?? payload['id'];
+    } catch {
+      // Invalid token
+    }
+  }
+
+  if (!userId) {
+    res.status(401).json({ message: 'Unauthorized' });
+    return;
+  }
+
+  const state = getMatch(matchId);
+  if (!state) {
+    res.status(404).json({ message: 'Match not found' });
+    return;
+  }
+
+  // Convert mobile placement format {x, y} to backend shape format {r, c}
+  // Mobile: { shapeId, anchor: {x, y}, cells: {x, y}[] }
+  // Backend PlacedShape: { id, name, cells: {r, c}[], originR, originC }
+  const mappedShapes = (placements || []).map((p: any) => {
+    const cells = (p.cells || []).map((c: any) => ({
+      r: c.y - p.anchor.y,
+      c: c.x - p.anchor.x,
+      y: c.y - p.anchor.y,
+      x: c.x - p.anchor.x
+    }));
+    return {
+      id: p.shapeId,
+      name: `Randomized Shape`,
+      cells,
+      originR: p.anchor.y,
+      originC: p.anchor.x
+    };
+  });
+
+  // Server-side validation
+  if (!validateClientShapes(mappedShapes, state.config.gridSize)) {
+    res.status(400).json({ message: 'Invalid shape placement' });
+    return;
+  }
+
+  const allLocked = lockPlacement(state, userId, mappedShapes);
+
+  // Broadcast locked status to opponent
+  const io = app.get('io');
+  if (io) {
+    for (const uid of state.players) {
+      if (uid !== userId) {
+        const sid = state.playerSockets[uid];
+        if (sid) {
+          io.to(sid).emit('placement.locked', { userId });
+        }
+      }
+    }
+
+    if (allLocked) {
+      clearMatchTimer(state);
+      advanceToQuestion(io, matchId);
+    }
+  }
+
+  res.json({ success: true });
+});
 
 // 404 fallthrough
 app.use((_req, res) => {

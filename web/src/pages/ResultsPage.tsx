@@ -46,7 +46,7 @@ export default function ResultsPage() {
            matchResult?.reason === 'opponent_disconnected' ? 'Opponent disconnected.' :
            matchResult?.reason === 'cheating' ? (isWinner ? 'Opponent was disqualified for tab switching.' : 'You were disqualified for tab switching.') :
            matchResult?.reason === 'left' ? (isWinner ? 'Opponent left the match.' : 'You left the match.') :
-           'Match complete'}
+            'Match complete'}
         </p>
 
         {/* Score comparison */}

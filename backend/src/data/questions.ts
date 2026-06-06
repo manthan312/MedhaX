@@ -2,7 +2,7 @@ export interface Question {
   id: string;
   language: string;
   topic: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: 'easy' | 'medium' | 'hard' | 'extra-hard';
   prompt: string;
   choices: [string, string, string, string];
   correct_index: 0 | 1 | 2 | 3;
@@ -1236,3 +1236,23 @@ export async function pickQuestions(language: string, topics: string[], count: n
     return pickQuestionsLocal(language, topics, count);
   }
 }
+
+/**
+ * Pick `count` high-difficulty questions (hard/extra-hard) for tie-breaker phase.
+ */
+export async function pickTieBreakerQuestions(language: string, topics: string[], count: number): Promise<Question[]> {
+  try {
+    const pool = await getQuestions(language, topics);
+    let filtered = pool.filter(q => q.difficulty === 'hard' || q.difficulty === 'extra-hard');
+    if (filtered.length < count) {
+      filtered = pool;
+    }
+    const shuffled = [...filtered].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, Math.min(count, shuffled.length));
+    return selected.map(q => shuffleQuestionChoices(q));
+  } catch (err) {
+    console.error('[pickTieBreakerQuestions] Catch error:', err);
+    return pickQuestionsLocal(language, topics, count);
+  }
+}
+

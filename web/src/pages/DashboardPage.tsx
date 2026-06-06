@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
+import LanguageLogo from '../components/LanguageLogo';
 import { useFriendStore } from '../store/friendStore';
 import { v4 as uuidv4 } from 'uuid';
 import { initSocket } from '../services/socket';
@@ -96,9 +97,13 @@ export default function DashboardPage() {
     };
   }, [token]);
 
-  const handleQuickMatch = () => {
+  const handleQuickMatch = (eOrLang?: any) => {
     const matchId = uuidv4();
-    navigate(`/lobby?matchId=${matchId}`);
+    let url = `/lobby?matchId=${matchId}`;
+    if (typeof eOrLang === 'string') {
+      url += `&lang=${encodeURIComponent(eOrLang)}`;
+    }
+    navigate(url);
   };
 
   const handleChallengeFriend = (friendId: string) => {
@@ -330,21 +335,23 @@ export default function DashboardPage() {
               <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 24, lineHeight: 1.6 }}>
                 Choose your language, place your shapes on the hidden grid, and battle it out with 45-second coding questions.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                 {[
-                  { icon: '🐍', lang: 'Python', desc: 'Lists, GIL, OOP' },
-                  { icon: '🟨', lang: 'JavaScript', desc: 'Closures, Promises, Event Loop' },
-                  { icon: '☕', lang: 'Java', desc: 'OOP, Collections, Threads' },
-                  { icon: '⚙️', lang: 'C++', desc: 'Pointers, STL, Memory' },
-                  { icon: '🇨', lang: 'C', desc: 'Basics, Pointers, Memory' },
-                  { icon: '💾', lang: 'DBMS', desc: 'SQL, Normalization, ACID' },
-                  { icon: '🔀', lang: 'DSA', desc: 'Structures, Patterns, Sorting' },
-                  { icon: '💻', lang: 'Operating System', desc: 'Scheduling, Memory, Deadlocks' },
+                  { lang: 'Python', desc: 'Lists, GIL, OOP' },
+                  { lang: 'JavaScript', desc: 'Closures, Promises, Event Loop' },
+                  { lang: 'Java', desc: 'OOP, Collections, Threads' },
+                  { lang: 'C++', desc: 'Pointers, STL, Memory' },
+                  { lang: 'C', desc: 'Basics, Pointers, Memory' },
+                  { lang: 'DBMS', desc: 'SQL, Normalization, ACID' },
+                  { lang: 'DSA', desc: 'Structures, Patterns, Sorting' },
+                  { lang: 'Operating System', desc: 'Scheduling, Memory, Deadlocks' },
                 ].map(l => (
-                  <div key={l.lang} onClick={handleQuickMatch} className="card card-glow" style={{ cursor: 'pointer', padding: 16 }}>
-                    <div style={{ fontSize: 24, marginBottom: 6 }}>{l.icon}</div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{l.lang}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{l.desc}</div>
+                  <div key={l.lang} onClick={() => handleQuickMatch(l.lang)} className="card card-glow" style={{ cursor: 'pointer', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, textAlign: 'left' }}>
+                    <LanguageLogo language={l.lang} size={28} />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>{l.lang}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.3 }}>{l.desc}</div>
+                    </div>
                   </div>
                 ))}
               </div>

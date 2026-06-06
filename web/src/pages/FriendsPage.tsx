@@ -139,7 +139,7 @@ export default function FriendsPage() {
   const pendingIdSet = new Set(pendingRequests.map(r => r.id));  // user IDs who sent me requests
   const sentIdSet    = new Set(sentRequests.map(r => r.id));      // user IDs I sent requests to
 
-  const displayedUsers = searchResults.filter(u => u.id !== user?.id);
+  const displayedUsers = searchResults.filter(u => u.id !== user?.id).slice(0, 15);
 
   return (
     <div className="page">

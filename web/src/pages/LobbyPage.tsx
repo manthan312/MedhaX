@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
 import { initSocket, emit } from '../services/socket';
+import LanguageLogo from '../components/LanguageLogo';
 
 const LANGUAGES = ['Python', 'JavaScript', 'Java', 'C++', 'C', 'DBMS', 'DSA', 'Operating System'];
 const TOPICS: Record<string, string[]> = {
@@ -64,8 +65,9 @@ export default function LobbyPage() {
   const { setMatchId, setStatus, setConfig, setPlayers, setReadyPlayers, initGrids, setPlacementDeadline } = useGameStore();
   const navigate = useNavigate();
 
-  const [language, setLanguage] = useState('Python');
-  const [topics, setTopics] = useState(['Python-basics']);
+  const initLang = params.get('lang') || 'Python';
+  const [language, setLanguage] = useState(initLang);
+  const [topics, setTopics] = useState(TOPICS[initLang] ? [TOPICS[initLang][0]] : ['Python-basics']);
   const [players, setPlayersLocal] = useState<{ id: string; handle: string }[]>([]);
   const [readySet, setReadySet] = useState<string[]>([]);
   const [connected, setConnected] = useState(false);
@@ -73,17 +75,30 @@ export default function LobbyPage() {
   const [myReady, setMyReady] = useState(false);
 
   const [questionCount, setQuestionCount] = useState<10 | 20 | 30>(10);
-  const gridSize: 5 | 6 | 7 = questionCount === 10 ? 5 : questionCount === 20 ? 6 : 7;
+  const gameMode = 'grid';
 
-  const updateConfig = (newLang: string, newTopics: string[], newQCount: 10 | 20 | 30) => {
+  const gridSize: number = questionCount === 10 ? 5 : questionCount === 20 ? 6 : 7;
+
+  const updateConfig = (
+    newLang: string,
+    newTopics: string[],
+    newQCount: 10 | 20 | 30
+  ) => {
     setLanguage(newLang);
     setTopics(newTopics);
     setQuestionCount(newQCount);
 
     const gs = newQCount === 10 ? 5 : newQCount === 20 ? 6 : 7;
+
     emit('lobby.update_config', {
       matchId,
-      config: { language: newLang, topics: newTopics, gridSize: gs, questionCount: newQCount },
+      config: {
+        language: newLang,
+        topics: newTopics,
+        gridSize: gs,
+        questionCount: newQCount,
+        gameMode: 'grid',
+      },
     });
   };
 
@@ -106,7 +121,7 @@ export default function LobbyPage() {
       socket.emit('lobby.join', {
         matchId,
         userId: user.id,
-        config: { language, topics, gridSize, questionCount },
+        config: { language, topics, gridSize, questionCount, gameMode },
       });
 
       // If this is a challenge invite link, send the challenge notification
@@ -148,10 +163,9 @@ export default function LobbyPage() {
       config?: any;
     }) => {
       const gs = (data.gridSize || gridSize) as 5 | 6 | 7;
-      const gameConfig = data.config || { language, topics, gridSize: gs, questionCount };
+      const gameConfig = data.config || { language, topics, gridSize: gs, questionCount, gameMode: 'grid' };
       setConfig(gameConfig);
-      const secs = data.remainingSeconds ?? Math.max(0, Math.ceil((data.deadline_ts - Date.now()) / 1000));
-      setPlacementDeadline(Date.now() + secs * 1000);
+      setPlacementDeadline(data.deadline_ts);
       setMatchId(matchId);
       setStatus('placement');
       if (data.playerHandles) {
@@ -164,6 +178,8 @@ export default function LobbyPage() {
       initGrids(gs);
       navigate(`/placement?matchId=${matchId}`);
     });
+
+    // Removed tictactoe start handler
 
     socket.on('challenge.declined', (data: { declinerHandle: string }) => {
       navigate('/dashboard', {
@@ -179,6 +195,7 @@ export default function LobbyPage() {
       socket.off('disconnect');
       socket.off('lobby.update');
       socket.off('placement.start');
+      // Removed tictactoe off handler
       socket.off('challenge.declined');
     };
   }, [token, user?.id, matchId]);
@@ -236,19 +253,38 @@ export default function LobbyPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
           {/* Config panel */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="card fade-in-up">
+            {/* Game Mode selection removed */}
+
+            <div className="card fade-in-up stagger-1">
               <div style={{ fontWeight: 700, marginBottom: 16 }}>🌐 Language</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {LANGUAGES.map(l => (
-                  <button key={l} className={`lang-tag ${language === l ? 'active' : ''}`}
-                    onClick={() => updateConfig(l, [TOPICS[l]![0]!], questionCount)}>
-                    {l}
-                  </button>
-                ))}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: 10 }}>
+                {LANGUAGES.map(l => {
+                  const active = language === l;
+                  return (
+                    <button
+                      key={l}
+                      className={`lang-tag ${active ? 'active' : ''}`}
+                      onClick={() => updateConfig(l, [TOPICS[l]![0]!], questionCount)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '10px 14px',
+                        borderRadius: '99px',
+                        height: 'auto',
+                        width: '100%',
+                        justifyContent: 'flex-start',
+                      }}
+                    >
+                      <LanguageLogo language={l} size={20} />
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{l}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="card fade-in-up stagger-1">
+            <div className="card fade-in-up stagger-2">
               <div style={{ fontWeight: 700, marginBottom: 16 }}>📚 Topics</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {(TOPICS[language] || []).map(t => (
@@ -260,7 +296,7 @@ export default function LobbyPage() {
               </div>
             </div>
 
-            <div className="card fade-in-up stagger-2">
+            <div className="card fade-in-up stagger-3">
               <div style={{ fontWeight: 700, marginBottom: 12 }}>❓ Match Scale (Questions & Grid Size)</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {[10, 20, 30].map((qCount) => {
@@ -284,7 +320,6 @@ export default function LobbyPage() {
                     >
                       <div style={{ fontWeight: 800, fontSize: 16 }}>{qCount} Qs</div>
                       <div style={{ fontSize: 11, opacity: 0.8 }}>{size}×{size} Grid</div>
-                      <div style={{ fontSize: 9, opacity: 0.6 }}>~52% Fill</div>
                     </button>
                   );
                 })}
@@ -337,6 +372,7 @@ export default function LobbyPage() {
             {/* Match info */}
             <div className="card fade-in-up stagger-1" style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>📋 Match Info</div>
+              <div>🎮 Mode: <strong style={{ color: 'var(--indigo-light)' }}>Grid Game</strong></div>
               <div>🌐 Language: <strong style={{ color: 'var(--indigo-light)' }}>{language}</strong></div>
               <div>📚 Topics: <strong style={{ color: 'var(--indigo-light)' }}>{topics.join(', ')}</strong></div>
               <div>⊞ Grid: <strong style={{ color: 'var(--indigo-light)' }}>{gridSize}×{gridSize}</strong></div>

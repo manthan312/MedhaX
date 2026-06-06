@@ -143,7 +143,7 @@ const ShapeCard: React.FC<{
         ))}
       </View>
       <Text style={{ color: isSelected ? color : '#64748B', fontSize: 10, fontWeight: 'bold', marginTop: 6 }}>
-        {isPlaced ? '✓ Placed' : template.name}
+        {isPlaced ? '✓ Placed' : `${template.cells.length} Blocks`}
       </Text>
     </TouchableOpacity>
   );
@@ -155,7 +155,7 @@ const ShapePlacementScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRoute>();
   const { gameId } = route.params;
-  const { config, setMyShapes, players } = useGameStore();
+  const { config, setMyShapes, players, placementDeadline } = useGameStore();
 
   const gridSize = config.gridSize || 5;
   const placementTimeLimit = config.placementTimeLimit || 90;
@@ -177,25 +177,27 @@ const ShapePlacementScreen: React.FC = () => {
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!placementDeadline) return;
+
     const interval = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(interval);
-          handleSubmit(true);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
+      const msLeft = Math.max(0, placementDeadline - Date.now());
+      const secs = Math.ceil(msLeft / 1000);
+      setTimeLeft(secs);
+
+      if (msLeft === 0) {
+        clearInterval(interval);
+        handleSubmit(true);
+      }
+    }, 100);
 
     Animated.timing(timerAnim, {
       toValue: 0,
-      duration: placementTimeLimit * 1000,
+      duration: Math.max(0, placementDeadline - Date.now()),
       useNativeDriver: false,
     }).start();
 
     return () => clearInterval(interval);
-  }, []);
+  }, [placementDeadline]);
 
   // ── Load templates ──────────────────────────────────────────────────────────
   useEffect(() => {

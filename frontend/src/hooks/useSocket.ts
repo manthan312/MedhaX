@@ -25,7 +25,9 @@ interface LobbyUpdatePayload {
 }
 
 interface PlacementStartPayload {
-  matchId: string;
+  matchId?: string;
+  deadline_ts?: number;
+  remainingSeconds?: number;
   config: MatchConfig;
   shapes: Array<{ id: string; name: string; cells: Array<{ x: number; y: number }> }>;
 }
@@ -33,7 +35,9 @@ interface PlacementStartPayload {
 interface QuestionStartPayload {
   question: Question;
   index: number;
-  timer: number;
+  timer?: number;
+  remainingSeconds?: number;
+  deadline_ts?: number;
 }
 
 interface AnswerResultPayload extends AnswerResult {}
@@ -101,14 +105,23 @@ export const useSocket = () => {
     // ── Placement phase start ─────────────────────────────────────────────────
     socket.on('placement.start', (payload: PlacementStartPayload) => {
       setStatus('placement');
-      const matchId = payload.matchId;
+      const store = useGameStore.getState();
+      const matchId = payload.matchId || store.matchId || '';
+      const remSecs = payload.remainingSeconds ?? 90;
+      store.setPlacementDeadline(Date.now() + remSecs * 1000);
+      store.setGameId(matchId);
       navigation.navigate('ShapePlacement', { gameId: matchId });
     });
 
     // ── Question start ────────────────────────────────────────────────────────
     socket.on('question.start', (payload: QuestionStartPayload) => {
       receiveQuestion(payload.question, payload.index);
-      setTimer(payload.timer ?? 45);
+      const remSecs = payload.remainingSeconds ?? payload.timer ?? 45;
+      const localDl = Date.now() + remSecs * 1000;
+      useGameStore.getState().setQuestionDeadline(localDl);
+      setTimer(remSecs);
+      const matchId = useGameStore.getState().matchId;
+      navigation.navigate('Game', { gameId: matchId ?? '' });
     });
 
     // ── Answer result ─────────────────────────────────────────────────────────

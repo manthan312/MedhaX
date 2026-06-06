@@ -54,7 +54,7 @@ usersRouter.get('/search', requireAuth, async (req: AuthenticatedRequest, res: R
       query = query.ilike('handle', `%${q}%`);
     }
 
-    const { data, error } = await query.limit(100);
+    const { data, error } = await query.limit(16);
 
     if (error) {
       console.error('[users/search] DB error:', error);
@@ -64,6 +64,7 @@ usersRouter.get('/search', requireAuth, async (req: AuthenticatedRequest, res: R
 
     const users = (data ?? [])
       .filter(u => u.id !== myUserId)
+      .slice(0, 15)
       .map(u => ({
         id: u.id,
         handle: u.handle,

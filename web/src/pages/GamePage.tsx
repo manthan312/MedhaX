@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
 import type { Question } from '../store/gameStore';
-import { initSocket, emit } from '../services/socket';
+import { initSocket, emit, getSyncedTime } from '../services/socket';
 
 const OPTS = ['A', 'B', 'C', 'D'];
 
@@ -72,6 +72,8 @@ export default function GamePage() {
   const [questionIdx, setQuestionIdx] = useState(0);
   const [total, setTotal] = useState(10);
   const [deadline, setDeadline] = useState<number | null>(null);
+  const [localDeadline, setLocalDeadline] = useState<number | null>(null);
+  const [initialDurationMs, setInitialDurationMs] = useState(45000);
   const [timeLeft, setTimeLeft] = useState(45);
   const [selectedOpt, setSelectedOpt] = useState<number | null>(null);
   const [answerResult, setAnswerResult] = useState<{ correctIndex: number; winnerId: string | null } | null>(null);
@@ -126,12 +128,24 @@ export default function GamePage() {
       config: config || { gridSize: 5 }
     });
 
-    socket.on('question.start', (data: { question: Question; questionIdx: number; total: number; deadline_ts: number; remainingSeconds?: number; playerHandles?: Record<string, string> }) => {
+    socket.on('question.start', (data: {
+      question: Question;
+      questionIdx: number;
+      total: number;
+      deadline_ts: number;
+      remainingSeconds?: number;
+      playerHandles?: Record<string, string>;
+      isTieBreaker?: boolean;
+      suddenDeath?: boolean;
+    }) => {
       setQuestion(data.question);
       setQuestionIdx(data.questionIdx);
       setTotal(data.total);
-      const secs = data.remainingSeconds ?? Math.max(0, Math.ceil((data.deadline_ts - Date.now()) / 1000));
-      setDeadline(Date.now() + secs * 1000);
+      setDeadline(data.deadline_ts);
+      const remSecs = data.remainingSeconds ?? 45;
+      const dur = remSecs * 1000;
+      setInitialDurationMs(dur);
+      setLocalDeadline(Date.now() + dur);
       setSelectedOpt(null);
       setAnswerResult(null);
       setOpponentFaster(false);
@@ -141,15 +155,21 @@ export default function GamePage() {
       }
     });
 
-    socket.on('answer.result', (data: { winnerId: string | null; correctIndex: number; scores: Record<string, number> }) => {
+    socket.on('answer.result', (data: {
+      winnerId: string | null;
+      correctIndex: number;
+      scores: Record<string, number>;
+      isTieBreaker?: boolean;
+      suddenDeath?: boolean;
+      tieBreakerScores?: Record<string, number>;
+    }) => {
       setAnswerResult({ correctIndex: data.correctIndex, winnerId: data.winnerId });
       setScores2(data.scores);
       updateScores(data.scores);
 
       if (data.winnerId === user?.id) {
-        showToast('🎯 Correct! You answered first — dig turn incoming!');
+        showToast(data.isTieBreaker ? '🎯 Correct! You answered first (+5 tiebreaker points)!' : '🎯 Correct! You answered first — turn incoming!');
       } else if (data.winnerId) {
-        // Opponent answered correctly first — show lockout overlay if user didn't answer
         setOpponentFaster(true);
         showToast('⚡ Opponent answered first!');
       } else {
@@ -157,7 +177,7 @@ export default function GamePage() {
       }
     });
 
-    socket.on('dig.turn', (data: { diggerUserId: string; playerHandles?: Record<string, string> }) => {
+    socket.on('dig.turn', (data: { diggerUserId: string; targetPlayers: string[]; gridSize: number; playerHandles?: Record<string, string> }) => {
       setDigTurn(data.diggerUserId);
       setOpponentFaster(false);
       if (data.playerHandles) {
@@ -185,17 +205,34 @@ export default function GamePage() {
       setTimeout(() => navigate(`/results?matchId=${matchId}`), 1000);
     });
 
-    return () => { ['question.start','answer.result','dig.turn','dig.result','match.end'].forEach(e => socket.off(e)); };
+    return () => {
+      [
+        'question.start',
+        'answer.result',
+        'dig.turn',
+        'dig.result',
+        'match.end'
+      ].forEach(e => socket.off(e));
+    };
   }, [user?.id, token]);
+
+  useEffect(() => {
+    if (deadline && !localDeadline) {
+      const rem = Math.max(0, Math.ceil((deadline - getSyncedTime()) / 1000));
+      setInitialDurationMs(45000);
+      setLocalDeadline(Date.now() + rem * 1000);
+    }
+  }, [deadline, localDeadline]);
 
   // Timer countdown
   useEffect(() => {
-    if (!deadline) return;
+    if (!localDeadline) return;
     const iv = setInterval(() => {
-      setTimeLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-    }, 200);
+      const msLeft = Math.max(0, localDeadline - Date.now());
+      setTimeLeft(Math.ceil(msLeft / 1000));
+    }, 50);
     return () => clearInterval(iv);
-  }, [deadline]);
+  }, [localDeadline]);
 
   const handleAnswer = (idx: number) => {
     if (selectedOpt !== null || answerResult !== null || opponentFaster) return;
@@ -210,11 +247,14 @@ export default function GamePage() {
     setDigTurn(null);
   };
 
+  // handleTictactoePlace removed
+
   const myScore = scores2[user?.id || ''] ?? 0;
   const opponentId = Object.keys(scores2).find(id => id !== user?.id);
   const opponentScore = opponentId ? (scores2[opponentId] ?? 0) : 0;
 
-  const timerPct = deadline ? Math.max(0, (deadline - Date.now()) / 45000) : 1;
+  const timeLeftMs = localDeadline ? Math.max(0, localDeadline - Date.now()) : 0;
+  const timerPct = localDeadline ? timeLeftMs / initialDurationMs : 1;
   const timerColor = timeLeft <= 10 ? '#ef4444' : timeLeft <= 20 ? '#f97316' : '#6366f1';
   const size = 100, stroke = 8, r2 = (size - stroke) / 2, circ = 2 * Math.PI * r2;
 
@@ -326,7 +366,7 @@ export default function GamePage() {
                     <circle cx={size/2} cy={size/2} r={r2} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
                     <circle cx={size/2} cy={size/2} r={r2} fill="none" stroke={timerColor} strokeWidth={stroke}
                       strokeDasharray={circ} strokeDashoffset={circ * (1 - timerPct)}
-                      strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.5s linear, stroke 0.3s' }} />
+                      strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s linear, stroke 0.3s' }} />
                   </svg>
                   <div className="timer-text" style={{ color: timerColor, fontSize: 20 }}>{timeLeft}</div>
                 </div>
@@ -388,57 +428,59 @@ export default function GamePage() {
         </div>
 
         {/* Right: Grids panel */}
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Opponent grid */}
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>⚔️ Opponent Grid</span>
-              {digTurn === user?.id && <span className="badge badge-red" style={{ animation: 'glow-pulse 1s infinite' }}>Your Turn!</span>}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: 4 }}>
-              {Array.from({ length: gridSize }, (_, r) =>
-                Array.from({ length: gridSize }, (_, c) => {
-                  const cell = opponentGrid[r]?.[c];
-                  let cls = 'grid-cell';
-                  if (cell?.attacked) cls += cell.hit ? ' attacked-hit' : ' attacked-miss';
-                  if (digTurn === user?.id && !cell?.attacked) cls += ' dig-target';
-                  return (
-                    <div key={`${r},${c}`} className={cls} style={{ paddingBottom: '100%', position: 'relative' }}
-                      onClick={() => handleDig(r, c)}>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                        {cell?.attacked ? (cell.hit ? '💥' : '○') : ''}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, justifyContent: 'center' }}>
+            <>
+              {/* Opponent grid */}
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>⚔️ Opponent Grid</span>
+                  {digTurn === user?.id && <span className="badge badge-red" style={{ animation: 'glow-pulse 1s infinite' }}>Your Turn!</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: 4 }}>
+                  {Array.from({ length: gridSize }, (_, r) =>
+                    Array.from({ length: gridSize }, (_, c) => {
+                      const cell = opponentGrid[r]?.[c];
+                      let cls = 'grid-cell';
+                      if (cell?.attacked) cls += cell.hit ? ' attacked-hit' : ' attacked-miss';
+                      if (digTurn === user?.id && !cell?.attacked) cls += ' dig-target';
+                      return (
+                        <div key={`${r},${c}`} className={cls} style={{ paddingBottom: '100%', position: 'relative' }}
+                          onClick={() => handleDig(r, c)}>
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                            {cell?.attacked ? (cell.hit ? '💥' : '○') : ''}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
 
-          <div style={{ height: 1, background: 'var(--border)' }} />
+              <div style={{ height: 1, background: 'var(--border)' }} />
 
-          {/* My grid */}
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 10 }}>🛡️ Your Grid</div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: 4 }}>
-              {Array.from({ length: gridSize }, (_, r) =>
-                Array.from({ length: gridSize }, (_, c) => {
-                  const cell = myGrid[r]?.[c];
-                  const hasShape = myShapes.some(s => s.cells.some(sc => s.originR + sc.r === r && s.originC + sc.c === c));
-                  let cls = 'grid-cell';
-                  if (hasShape) cls += cell?.attacked ? ' attacked-hit' : ' shape-placed';
-                  else if (cell?.attacked) cls += ' attacked-miss';
-                  return (
-                    <div key={`${r},${c}`} className={cls} style={{ paddingBottom: '100%', position: 'relative' }}>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-                        {cell?.attacked ? (hasShape ? '💥' : '○') : ''}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
+              {/* My grid */}
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>🛡️ Your Grid</div>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: 4 }}>
+                  {Array.from({ length: gridSize }, (_, r) =>
+                    Array.from({ length: gridSize }, (_, c) => {
+                      const cell = myGrid[r]?.[c];
+                      const hasShape = myShapes.some(s => s.cells.some(sc => s.originR + sc.r === r && s.originC + sc.c === c));
+                      let cls = 'grid-cell';
+                      if (hasShape) cls += cell?.attacked ? ' attacked-hit' : ' shape-placed';
+                      else if (cell?.attacked) cls += ' attacked-miss';
+                      return (
+                        <div key={`${r},${c}`} className={cls} style={{ paddingBottom: '100%', position: 'relative' }}>
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+                            {cell?.attacked ? (hasShape ? '💥' : '○') : ''}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </>
         </div>
       </div>
 

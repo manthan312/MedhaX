@@ -3,7 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
 import type { PlacedShape } from '../store/gameStore';
-import { initSocket, emit } from '../services/socket';
+import { initSocket, emit, getSyncedTime } from '../services/socket';
+
+const SHAPE_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#EF4444'];
 
 interface ShapeTemplate { id: string; name: string; cells: { r: number; c: number }[]; }
 
@@ -52,9 +54,13 @@ export default function PlacementPage() {
   const [locked, setLocked] = useState(false);
   const [opponentLocked, setOpponentLocked] = useState(false);
   const [timeLeft, setTimeLeft] = useState(90);
+  const [localDeadline, setLocalDeadline] = useState<number | null>(null);
+  const [shapesTemplates, setShapesTemplates] = useState<ShapeTemplate[]>([]);
+
+  const templates = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
 
   const currentCells = (() => {
-    let cells = SHAPES[selectedShapeIdx % SHAPES.length]!.cells;
+    let cells = templates[selectedShapeIdx % templates.length]?.cells || [];
     for (let i = 0; i < (rotation % 4); i++) cells = rotateShape(cells);
     return cells;
   })();
@@ -79,9 +85,10 @@ export default function PlacementPage() {
     const countCells = (shapes: PlacedShape[]) => shapes.reduce((a, s) => a + s.cells.length, 0);
 
     let attempts = 0;
+    const templatesList = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
     while (countCells(newPlaced) < targetCells && attempts < 500) {
       attempts++;
-      const template = SHAPES[Math.floor(Math.random() * SHAPES.length)]!;
+      const template = templatesList[Math.floor(Math.random() * templatesList.length)]!;
       let cells = template.cells;
       const rot = Math.floor(Math.random() * 4);
       for (let i = 0; i < rot; i++) cells = rotateShape(cells);
@@ -127,13 +134,16 @@ export default function PlacementPage() {
       config: config || { gridSize }
     });
 
-    const handlePlacementStart = (data: { deadline_ts: number; remainingSeconds?: number; gridSize: number; players: any[]; playerHandles?: Record<string, string>; config?: any }) => {
+    const handlePlacementStart = (data: { deadline_ts: number; remainingSeconds?: number; gridSize: number; players: any[]; playerHandles?: Record<string, string>; config?: any; shapesTemplates?: ShapeTemplate[] }) => {
       const useGridSize = data.gridSize || gridSize;
       if (data.config) {
         setConfig(data.config);
       }
-      const secs = data.remainingSeconds ?? Math.max(0, Math.ceil((data.deadline_ts - Date.now()) / 1000));
-      setPlacementDeadline(Date.now() + secs * 1000);
+      if (data.shapesTemplates) {
+        setShapesTemplates(data.shapesTemplates);
+      }
+      setPlacementDeadline(data.deadline_ts);
+      setLocalDeadline(Date.now() + (data.remainingSeconds ?? 90) * 1000);
       if (data.playerHandles) {
         useGameStore.getState().setPlayerHandles(data.playerHandles);
       }
@@ -162,20 +172,29 @@ export default function PlacementPage() {
   }, [matchId, user?.id, token, config, gridSize]);
 
   useEffect(() => {
-    if (!placementDeadline) return;
+    if (placementDeadline && !localDeadline) {
+      const rem = Math.max(0, Math.ceil((placementDeadline - getSyncedTime()) / 1000));
+      setLocalDeadline(Date.now() + rem * 1000);
+    }
+  }, [placementDeadline, localDeadline]);
+
+  useEffect(() => {
+    if (!localDeadline) return;
     const iv = setInterval(() => {
-      const left = Math.max(0, Math.ceil((placementDeadline - Date.now()) / 1000));
+      const msLeft = Math.max(0, localDeadline - Date.now());
+      const left = Math.ceil(msLeft / 1000);
       setTimeLeft(left);
-      if (left === 0 && !locked) {
+      if (msLeft === 0 && !locked) {
+        clearInterval(iv);
         const finalPlaced = autoFillGrid(placed);
         setPlaced(finalPlaced);
         setMyShapes(finalPlaced);
         setLocked(true);
         emit('placement.lock', { matchId, userId: user?.id, shapes: finalPlaced });
       }
-    }, 500);
+    }, 50);
     return () => clearInterval(iv);
-  }, [placementDeadline, locked, placed, matchId, user?.id]);
+  }, [localDeadline, locked, placed, matchId, user?.id]);
 
   const previewCells = hoverCell
     ? currentCells.map(c => ({ r: hoverCell.r + c.r, c: hoverCell.c + c.c }))
@@ -190,9 +209,22 @@ export default function PlacementPage() {
     const cells = currentCells.map(cell => ({ r: r + cell.r, c: c + cell.c }));
     if (cells.some(cell => cell.r < 0 || cell.r >= gridSize || cell.c < 0 || cell.c >= gridSize || occupiedSet.has(`${cell.r},${cell.c}`))) return;
 
-    const shape = SHAPES[selectedShapeIdx % SHAPES.length]!;
+    const templatesList = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
+    const shape = templatesList[selectedShapeIdx % templatesList.length]!;
     const newShape: PlacedShape = { id: `${shape.id}-${Date.now()}`, name: shape.name, cells: currentCells, originR: r, originC: c };
-    setPlaced(prev => [...prev, newShape]);
+    
+    const newPlaced = [...placed, newShape];
+    setPlaced(newPlaced);
+
+    // Auto-select next unplaced shape index
+    const nextIdx = templatesList.findIndex((temp) => {
+      const tempPlaced = newPlaced.some(p => p.id.startsWith(temp.id));
+      return !tempPlaced;
+    });
+    if (nextIdx !== -1) {
+      setSelectedShapeIdx(nextIdx);
+      setRotation(0);
+    }
   };
 
   const handleRemove = (shapeId: string) => {
@@ -232,7 +264,7 @@ export default function PlacementPage() {
           </div>
           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Time remaining</div>
           <div className="progress-bar" style={{ width: 120, marginTop: 8 }}>
-            <div className="progress-fill" style={{ width: `${(timeLeft / 90) * 100}%`, background: timeLeft <= 20 ? 'linear-gradient(90deg, var(--red), #dc2626)' : undefined }} />
+            <div className="progress-fill" style={{ width: `${localDeadline ? (Math.max(0, localDeadline - Date.now()) / 90000) * 100 : 100}%`, transition: 'none', background: timeLeft <= 20 ? 'linear-gradient(90deg, var(--red), #dc2626)' : undefined }} />
           </div>
         </div>
 
@@ -259,10 +291,31 @@ export default function PlacementPage() {
                 const isPreview = previewCells.some(p => p.r === r && p.c === c);
                 const placedShape = placed.find(s => s.cells.some(cell => s.originR + cell.r === r && s.originC + cell.c === c));
 
+                const templatesList = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
+                const shapeColor = placedShape
+                  ? SHAPE_COLORS[templatesList.findIndex(temp => placedShape.id.startsWith(temp.id)) % SHAPE_COLORS.length]
+                  : undefined;
+                const activeColor = templatesList[selectedShapeIdx % templatesList.length]
+                  ? SHAPE_COLORS[selectedShapeIdx % templatesList.length]
+                  : '#6366F1';
+
                 return (
                   <div key={key}
-                    className={`grid-cell ${isOccupied ? 'shape-placed' : ''} ${isPreview ? (isPreviewValid ? 'preview-valid' : 'preview-invalid') : ''}`}
-                    style={{ width: '100%', paddingBottom: '100%', position: 'relative', cursor: locked ? 'default' : 'pointer' }}
+                    className={`grid-cell ${isPreview ? (isPreviewValid ? 'preview-valid' : 'preview-invalid') : ''}`}
+                    style={{
+                      width: '100%',
+                      paddingBottom: '100%',
+                      position: 'relative',
+                      cursor: locked ? 'default' : 'pointer',
+                      background: isOccupied ? `${shapeColor}66` : undefined,
+                      border: isOccupied ? `2px solid ${shapeColor}` : undefined,
+                      boxShadow: isOccupied ? `0 0 10px ${shapeColor}33` : undefined,
+                      // Apply preview colors dynamically matching active color
+                      ...(isPreview && isPreviewValid ? {
+                        background: `${activeColor}33`,
+                        border: `2px dashed ${activeColor}`,
+                      } : {})
+                    }}
                     onClick={() => handleCellClick(r, c)}
                     onMouseEnter={() => setHoverCell({ r, c })}
                     onMouseLeave={() => setHoverCell(null)}
@@ -270,7 +323,7 @@ export default function PlacementPage() {
                   >
                     {isOccupied && placedShape && (
                       <button onClick={(e) => { e.stopPropagation(); handleRemove(placedShape.id); }}
-                        style={{ position: 'absolute', inset: 0, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: 'rgba(255,255,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        style={{ position: 'absolute', inset: 0, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 10, color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         ✕
                       </button>
                     )}
@@ -293,16 +346,68 @@ export default function PlacementPage() {
         </div>
 
         {/* Controls */}
-        <div style={{ width: 240, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: 280, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div className="card">
-            <div style={{ fontWeight: 700, marginBottom: 12 }}>Shapes</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {SHAPES.map((s, i) => (
-                <button key={s.id} onClick={() => { setSelectedShapeIdx(i); setRotation(0); }}
-                  style={{ padding: '10px 14px', borderRadius: 10, border: `1px solid ${selectedShapeIdx === i ? 'var(--indigo)' : 'var(--border)'}`, background: selectedShapeIdx === i ? 'rgba(99,102,241,0.15)' : 'var(--bg-glass)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: selectedShapeIdx === i ? 700 : 400, transition: 'all 0.2s' }}>
-                  {s.name}
-                </button>
-              ))}
+            <div style={{ fontWeight: 700, marginBottom: 12 }}>Shapes Palette</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
+              {templates.map((s, i) => {
+                const isSelected = selectedShapeIdx === i;
+                const isPlaced = placed.some(p => p.id.startsWith(s.id));
+                const cells = s.cells;
+                const maxR = Math.max(...cells.map(c => c.r)) + 1;
+                const maxC = Math.max(...cells.map(c => c.c)) + 1;
+                const color = SHAPE_COLORS[i % SHAPE_COLORS.length];
+
+                return (
+                  <button
+                    key={s.id}
+                    disabled={isPlaced || locked}
+                    onClick={() => { setSelectedShapeIdx(i); setRotation(0); }}
+                    style={{
+                      padding: 10,
+                      borderRadius: 14,
+                      border: `2px solid ${isSelected ? color : isPlaced ? 'transparent' : 'var(--border)'}`,
+                      background: isSelected ? `${color}1a` : 'var(--bg-glass)',
+                      cursor: isPlaced || locked ? 'default' : 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 80,
+                      height: 80,
+                      opacity: isPlaced ? 0.35 : 1,
+                      transition: 'all 0.2s',
+                      outline: 'none',
+                      position: 'relative',
+                      boxShadow: isSelected ? `0 0 15px ${color}33` : undefined,
+                    }}
+                  >
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${maxC}, 10px)`, gap: 1.5 }}>
+                      {Array.from({ length: maxR }).map((_, r) =>
+                        Array.from({ length: maxC }).map((_, c) => {
+                          const hasCell = cells.some(cell => cell.r === r && cell.c === c);
+                          return (
+                            <div
+                              key={`${r}-${c}`}
+                              style={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: 2.5,
+                                background: hasCell ? color : 'transparent',
+                              }}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                    {isPlaced && (
+                      <span style={{ fontSize: 9, color: 'var(--green)', fontWeight: 700, marginTop: 4, position: 'absolute', bottom: 4 }}>
+                        ✓ Placed
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

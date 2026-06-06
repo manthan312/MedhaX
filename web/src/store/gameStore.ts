@@ -30,7 +30,7 @@ interface GameState {
   status: GameStatus;
   players: string[];
   opponentId: string | null;
-  config: { language: string; topics: string[]; gridSize: 5 | 6 | 7; questionCount: number } | null;
+  config: { language: string; topics: string[]; gridSize: number; questionCount: number; gameMode?: 'grid' | 'tictactoe' } | null;
   myShapes: PlacedShape[];
   myGrid: GridCell[][];
   opponentGrid: GridCell[][];
@@ -48,6 +48,7 @@ interface GameState {
   placementDeadline: number | null;
   opponentLocked: boolean;
   playerHandles: Record<string, string>;
+
 
   setMatchId: (id: string) => void;
   setStatus: (s: GameStatus) => void;
@@ -67,6 +68,7 @@ interface GameState {
   setPlacementDeadline: (ts: number) => void;
   setOpponentLocked: (v: boolean) => void;
   setPlayerHandles: (map: Record<string, string>) => void;
+
   reset: () => void;
 }
 
@@ -106,6 +108,7 @@ export const useGameStore = create<GameState>((set) => ({
   setPlacementDeadline: (ts) => set({ placementDeadline: ts }),
   setOpponentLocked: (v) => set({ opponentLocked: v }),
   setPlayerHandles: (playerHandles) => set({ playerHandles }),
+
   reset: () => set({
     matchId: null, status: 'idle', players: [], opponentId: null, config: null,
     myShapes: [], myGrid: makeGrid(5), opponentGrid: makeGrid(5),

@@ -90,7 +90,7 @@ export const useFriendStore = create<FriendState>((set, get) => ({
         ? `${API}/users/search?q=${encodeURIComponent(trimmed)}`
         : `${API}/users/search`;
       const res = await axios.get(url, { headers: getHeaders() });
-      set({ searchResults: res.data.users ?? [], isLoading: false });
+      set({ searchResults: (res.data.users ?? []).slice(0, 15), isLoading: false });
     } catch (err: any) {
       handle401(err);
       set({ searchResults: [], isLoading: false });

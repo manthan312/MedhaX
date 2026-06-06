@@ -19,8 +19,9 @@ import {
   placeShapes,
   isValidPlacement,
   generateShapesForGrid,
+  generateRandomShapes,
 } from '../game/shapes.js';
-import { pickQuestions } from '../data/questions.js';
+import { pickQuestions, pickTieBreakerQuestions } from '../data/questions.js';
 import { getGeminiKey } from '../config/gemini.js';
 import { insforgeAdmin } from '../config/insforge.js';
 import { onlineUsers } from '../config/online.js';
@@ -35,6 +36,7 @@ interface JoinLobbyPayload {
     topics: string[];
     gridSize: 5 | 6 | 7;
     questionCount: number;
+    gameMode?: 'grid';
   };
 }
 
@@ -71,7 +73,7 @@ const RECONNECT_GRACE_MS   = 10_000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function clearMatchTimer(state: MatchState): void {
+export function clearMatchTimer(state: MatchState): void {
   if (state.timer) {
     clearTimeout(state.timer);
     state.timer = null;
@@ -87,7 +89,7 @@ function emitToMatch(io: Server, state: MatchState, event: string, data: unknown
 }
 
 /** Validate client-supplied shapes against the server grid logic. */
-function validateClientShapes(shapes: PlacedShape[], gridSize: number): boolean {
+export function validateClientShapes(shapes: PlacedShape[], gridSize: number): boolean {
   const grid: boolean[][] = Array.from({ length: gridSize }, () =>
     Array(gridSize).fill(false),
   );
@@ -103,6 +105,9 @@ function validateClientShapes(shapes: PlacedShape[], gridSize: number): boolean 
   }
   return true;
 }
+
+// checkTicTacToeWin and getTTTBoardWinner removed
+
 
 async function getPlayerHandles(state: MatchState): Promise<Record<string, string>> {
   try {
@@ -206,7 +211,11 @@ function getAllMatches(): Map<string, MatchState> {
 
 // ─── Phase Helpers ────────────────────────────────────────────────────────────
 
-function advanceToQuestion(io: Server, matchId: string): void {
+
+
+// triggerTieBreaker and triggerSuddenDeath removed
+
+export function advanceToQuestion(io: Server, matchId: string): void {
   const state = getMatch(matchId);
   if (!state) return;
 
@@ -250,6 +259,8 @@ function advanceToQuestion(io: Server, matchId: string): void {
 
 function resolveAndBroadcastRound(io: Server, matchId: string, state: MatchState): void {
   clearMatchTimer(state);
+
+  // Removed tie-breaker handling
 
   const result = resolveRound(state);
 
@@ -312,6 +323,14 @@ function handleDisconnect(
 
 export function registerMatchHandlers(io: Server, socket: Socket): void {
   const socketUserId: string = (socket as any).userId;
+
+  // ── time.sync ──────────────────────────────────────────────────────────────
+  socket.on('time.sync', (payload: { clientTime: number }) => {
+    socket.emit('time.sync.ack', {
+      clientTime: payload.clientTime,
+      serverTime: Date.now(),
+    });
+  });
 
   // ── challenge.send ─────────────────────────────────────────────────────────
   socket.on('challenge.send', async (payload: { matchId: string; targetUserId: string }) => {
@@ -394,13 +413,16 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     if (state.status === 'placement') {
       const remainingSeconds = state.deadline ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 90;
       const handles = await getPlayerHandles(state);
+      const shapesTemplates = state.shapeTemplates?.[joiningUserId] || [];
       socket.emit('placement.start', {
+        matchId,
         deadline_ts: state.deadline || (Date.now() + 90_000),
         remainingSeconds,
         gridSize: state.config.gridSize,
         players: state.players,
         playerHandles: handles,
         config: state.config,
+        shapesTemplates,
       });
     } else if (state.status === 'question') {
       const q = state.questions[state.currentQuestionIdx];
@@ -447,6 +469,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       topics: config.topics,
       gridSize: config.gridSize,
       questionCount: config.questionCount,
+      gameMode: config.gameMode,
     };
 
     emitLobbyUpdate(io, state);
@@ -476,28 +499,43 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         state.config.questionCount,
       );
 
+      clearMatchTimer(state);
+      // Generate separate random shapes templates for each player
+      state.shapeTemplates = {};
+      for (const pid of state.players) {
+        state.shapeTemplates[pid] = generateRandomShapes(state.config.gridSize);
+      }
+
       const deadline = startPlacement(state);
       const handles = await getPlayerHandles(state);
 
-      emitToMatch(io, state, 'placement.start', {
-        deadline_ts: deadline,
-        remainingSeconds: 90,
-        gridSize: state.config.gridSize,
-        players: state.players,
-        playerHandles: handles,
-        config: state.config,
-      });
+      // Emit individual placement.start events with their custom shape templates
+      for (const pid of state.players) {
+        const sid = state.playerSockets[pid];
+        if (sid) {
+          io.to(sid).emit('placement.start', {
+            matchId,
+            deadline_ts: deadline,
+            remainingSeconds: 90,
+            gridSize: state.config.gridSize,
+            players: state.players,
+            playerHandles: handles,
+            config: state.config,
+            shapesTemplates: state.shapeTemplates[pid],
+          });
+        }
+      }
 
       // Auto-force placement lock after 90s
       state.timer = setTimeout(() => {
         const s = getMatch(matchId);
         if (!s || s.status !== 'placement') return;
 
-        // Auto-place for any player who hasn't locked yet
+        // Auto-place for any player who hasn't locked yet using their templates
         for (const pid of s.players) {
           if (!s.placementLocked[pid]) {
-            const autoShapes = generateShapesForGrid(s.config.gridSize);
-            const placed = placeShapes(autoShapes, s.config.gridSize);
+            const templates = s.shapeTemplates?.[pid] || generateRandomShapes(s.config.gridSize);
+            const placed = placeShapes(templates, s.config.gridSize);
             lockPlacement(s, pid, placed);
           }
         }
@@ -641,6 +679,8 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
     advanceToQuestion(io, matchId);
   });
+
+  // tictactoe.place removed
 
   // ── request_hint ───────────────────────────────────────────────────────────
   socket.on('hint.request', async (payload: HintRequestPayload) => {

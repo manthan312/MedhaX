@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import ParticleBackground from '../components/ParticleBackground';
+import LanguageLogo from '../components/LanguageLogo';
 
 const features = [
   { icon: '⚡', color: 'rgba(99,102,241,0.15)', title: 'Real-Time Battles', desc: 'Server-authoritative 45s timers, simultaneous question delivery, and sub-150ms event latency keep the game perfectly synchronized.' },
@@ -21,7 +21,6 @@ const howItWorks = [
 export default function LandingPage() {
   return (
     <div className="page">
-      <ParticleBackground />
       <Navbar />
 
       {/* Hero */}
@@ -116,19 +115,21 @@ export default function LandingPage() {
         </div>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           {[
-            { lang: 'Python', color: '#3b82f6', icon: '🐍', topics: 'Basics, Lists, OOP, GIL' },
-            { lang: 'JavaScript', color: '#eab308', icon: '🟨', topics: 'Closures, Promises, Event Loop' },
-            { lang: 'Java', color: '#f97316', icon: '☕', topics: 'OOP, Collections, JVM, Threads' },
-            { lang: 'C++', color: '#06b6d4', icon: '⚙️', topics: 'Pointers, STL, Memory' },
-            { lang: 'C', color: '#a855f7', icon: '🇨', topics: 'Basics, Pointers, Structs, Memory' },
-            { lang: 'DBMS', color: '#10b981', icon: '💾', topics: 'SQL, Normalization, ACID, Locks' },
-            { lang: 'DSA', color: '#ef4444', icon: '🔀', topics: 'Structures, Patterns, Graph Algos' },
-            { lang: 'Operating System', color: '#6366f1', icon: '💻', topics: 'Scheduling, Memory, Sync, Deadlocks' },
+            { lang: 'Python', color: '#3b82f6', topics: 'Basics, Lists, OOP, GIL' },
+            { lang: 'JavaScript', color: '#eab308', topics: 'Closures, Promises, Event Loop' },
+            { lang: 'Java', color: '#f97316', topics: 'OOP, Collections, JVM, Threads' },
+            { lang: 'C++', color: '#06b6d4', topics: 'Pointers, STL, Memory' },
+            { lang: 'C', color: '#a855f7', topics: 'Basics, Pointers, Structs, Memory' },
+            { lang: 'DBMS', color: '#10b981', topics: 'SQL, Normalization, ACID, Locks' },
+            { lang: 'DSA', color: '#ef4444', topics: 'Structures, Patterns, Graph Algos' },
+            { lang: 'Operating System', color: '#6366f1', topics: 'Scheduling, Memory, Sync, Deadlocks' },
           ].map((l) => (
-            <div key={l.lang} className="card card-glow" style={{ minWidth: 200, textAlign: 'center' }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>{l.icon}</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: l.color, marginBottom: 6 }}>{l.lang}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{l.topics}</div>
+            <div key={l.lang} className="card card-glow" style={{ minWidth: 220, padding: '24px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <div style={{ marginBottom: 16 }}>
+                <LanguageLogo language={l.lang} size={32} />
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: l.color, marginBottom: 8 }}>{l.lang}</div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{l.topics}</div>
             </div>
           ))}
         </div>
