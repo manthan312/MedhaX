@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import ParticleBackground from '../components/ParticleBackground';
 
 const features = [
   { icon: '⚡', color: 'rgba(99,102,241,0.15)', title: 'Real-Time Battles', desc: 'Server-authoritative 45s timers, simultaneous question delivery, and sub-150ms event latency keep the game perfectly synchronized.' },
@@ -20,6 +21,7 @@ const howItWorks = [
 export default function LandingPage() {
   return (
     <div className="page">
+      <ParticleBackground />
       <Navbar />
 
       {/* Hero */}

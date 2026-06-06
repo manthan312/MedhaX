@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import ParticleBackground from '../components/ParticleBackground';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -21,6 +22,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <ParticleBackground />
       <div className="auth-box fade-in-up">
         {/* Logo */}
         <div className="text-center" style={{ marginBottom: 40 }}>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import ParticleBackground from '../components/ParticleBackground';
 
 export default function SignupPage() {
   const [username, setUsername] = useState('');
@@ -29,6 +30,7 @@ export default function SignupPage() {
 
   return (
     <div className="auth-page">
+      <ParticleBackground />
       <div className="auth-box fade-in-up">
         <div className="text-center" style={{ marginBottom: 40 }}>
           <Link to="/" className="nav-logo" style={{ fontSize: 28 }}>MedhaX</Link>
