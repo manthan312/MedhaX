@@ -7,7 +7,7 @@ Built as a full-stack TypeScript monorepo with a web client (React + Vite), a mo
 ## How it works
 
 1. **Lobby** — Create or join a match room. Pick a programming language (Python, JavaScript, Java, C++, etc.), select topics, and choose a match scale (10 / 20 / 30 questions with corresponding grid sizes 5×5 / 6×6 / 7×7).
-2. **Placement Phase** — The game randomly generates a unique set of shapes (single blocks, lines, L-shapes, T-shapes, squares) for the match. The total number of cells these shapes cover depends on the question count (10 questions = 6 cells, 20 questions = 12 cells, 30 questions = 18 cells). Each player has 90 seconds to place these pieces onto their grid. Think Tetris pieces on a battleship board.
+2. **Placement Phase** — The server randomly generates a fixed set of shapes for each player based on the match scale: 10 questions → 2 shapes covering 6 cells, 20 questions → 3 shapes covering 14 cells, 30 questions → 4 shapes covering 25 cells. Each player has 90 seconds to place these pieces onto their grid. Think Tetris pieces on a battleship board.
 3. **Question Rounds** — An MCQ coding question appears for both players simultaneously with a 45-second timer. The first player to answer correctly wins the round.
 4. **Dig Turn** — The round winner picks a cell on the opponent's grid. Hit a shape cell? Score bonus points. Miss? Tough luck.
 5. **Game Over** — Match ends when all of a player's shapes are uncovered, all questions are exhausted, or someone forfeits/disconnects.
