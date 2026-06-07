@@ -14,7 +14,7 @@ import { onlineUsers } from './config/online.js';
 import { seedQuestions } from './data/seed.js';
 import { insforgeAdmin } from './config/insforge.js';
 import { getMatch, lockPlacement } from './game/matchState.js';
-import { generateRandomShapes } from './game/shapes.js';
+import { generateShapesForGrid } from './game/shapes.js';
 
 // ─── Express App ──────────────────────────────────────────────────────────────
 
@@ -81,7 +81,7 @@ app.get('/api/game-rooms/:matchId/shapes', async (req, res) => {
     state.shapeTemplates = {};
   }
   if (!state.shapeTemplates[userId]) {
-    state.shapeTemplates[userId] = generateRandomShapes(state.config.gridSize);
+    state.shapeTemplates[userId] = generateShapesForGrid(state.config.questionCount);
   }
 
   res.json(state.shapeTemplates[userId]);

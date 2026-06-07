@@ -71,7 +71,7 @@ const RECONNECT_GRACE_MS   = 10_000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function clearMatchTimer(state: MatchState): void {
+export function clearMatchTimer(state: MatchState): void {
   if (state.timer) {
     clearTimeout(state.timer);
     state.timer = null;
@@ -87,7 +87,7 @@ function emitToMatch(io: Server, state: MatchState, event: string, data: unknown
 }
 
 /** Validate client-supplied shapes against the server grid logic. */
-function validateClientShapes(shapes: PlacedShape[], gridSize: number): boolean {
+export function validateClientShapes(shapes: PlacedShape[], gridSize: number): boolean {
   const grid: boolean[][] = Array.from({ length: gridSize }, () =>
     Array(gridSize).fill(false),
   );
@@ -206,7 +206,7 @@ function getAllMatches(): Map<string, MatchState> {
 
 // ─── Phase Helpers ────────────────────────────────────────────────────────────
 
-function advanceToQuestion(io: Server, matchId: string): void {
+export function advanceToQuestion(io: Server, matchId: string): void {
   const state = getMatch(matchId);
   if (!state) return;
 
