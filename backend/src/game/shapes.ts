@@ -4,8 +4,6 @@
 export interface Cell {
   r: number;
   c: number;
-  x?: number;
-  y?: number;
 }
 
 export interface Shape {
@@ -186,74 +184,84 @@ export function placeShapes(shapes: Shape[], gridSize: number): PlacedShape[] {
   return placed;
 }
 
-export function generateRandomShape(size: number, id: string): Shape {
-  const cells: Cell[] = [];
-  cells.push({ r: 0, c: 0 });
-  const cellSet = new Set<string>(['0,0']);
+/**
+ * Generate a fixed number of shapes whose total cell count matches the target.
+ *
+ * Match scale rules:
+ *   10 questions → 2 shapes covering exactly 6 cells
+ *   20 questions → 3 shapes covering exactly 14 cells
+ *   30 questions → 4 shapes covering exactly 25 cells
+ *
+ * Randomly selects and optionally rotates/mirrors shapes from the catalog.
+ * Retries from scratch if a valid combination isn't found within a few hundred attempts.
+ */
+export function generateShapesForGrid(questionCount: number): Shape[] {
+  const targetCells = questionCount === 10 ? 6 : questionCount === 20 ? 14 : 25;
+  const maxShapes = questionCount === 10 ? 2 : questionCount === 20 ? 3 : 4;
+  const catalog = [...SHAPE_CATALOG];
 
-  const dr = [-1, 0, 1, 0];
-  const dc = [0, 1, 0, -1];
+  // Retry the entire selection from scratch up to 50 times
+  for (let retry = 0; retry < 50; retry++) {
+    const selected: Shape[] = [];
+    let totalCells = 0;
+    let attempts = 0;
 
-  while (cells.length < size) {
-    const candidates: Cell[] = [];
-    for (const cell of cells) {
-      for (let d = 0; d < 4; d++) {
-        const nr = cell.r + dr[d]!;
-        const nc = cell.c + dc[d]!;
-        const key = `${nr},${nc}`;
-        if (!cellSet.has(key)) {
-          candidates.push({ r: nr, c: nc });
+    while (selected.length < maxShapes && attempts < 500) {
+      attempts++;
+      const base = catalog[Math.floor(Math.random() * catalog.length)]!;
+
+      // Skip if adding this shape would exceed the target
+      if (totalCells + base.cells.length > targetCells) {
+        continue;
+      }
+
+      // On the last shape slot, it must fill exactly the remaining cells
+      if (selected.length === maxShapes - 1) {
+        const remaining = targetCells - totalCells;
+        if (base.cells.length !== remaining) {
+          continue;
         }
       }
+
+      let shape: Shape = { ...base, id: `${base.id}-${selected.length}-${Math.random()}` };
+      const transform = Math.floor(Math.random() * 4);
+      if (transform === 1) shape = rotateShape(shape);
+      else if (transform === 2) shape = mirrorShape(shape);
+      else if (transform === 3) shape = rotateShape(mirrorShape(shape));
+
+      selected.push(shape);
+      totalCells += shape.cells.length;
     }
 
+    // Accept only if we hit the exact shape count and cell target
+    if (selected.length === maxShapes && totalCells === targetCells) {
+      return selected;
+    }
+  }
+
+  // Fallback: shouldn't happen with the catalog we have, but just in case
+  console.warn(`[shapes] Could not find exact combination for ${questionCount}Q (target: ${targetCells} cells, ${maxShapes} shapes). Returning best-effort.`);
+  return generateShapesForGridFallback(targetCells, maxShapes, catalog);
+}
+
+/** Best-effort fallback that tries to get close to the target. */
+function generateShapesForGridFallback(targetCells: number, maxShapes: number, catalog: Shape[]): Shape[] {
+  const selected: Shape[] = [];
+  let totalCells = 0;
+
+  for (let i = 0; i < maxShapes && totalCells < targetCells; i++) {
+    const remaining = targetCells - totalCells;
+    // Pick the largest shape that fits
+    const candidates = catalog.filter(s => s.cells.length <= remaining);
     if (candidates.length === 0) break;
-
-    const chosen = candidates[Math.floor(Math.random() * candidates.length)]!;
-    cells.push(chosen);
-    cellSet.add(`${chosen.r},${chosen.c}`);
+    const base = candidates[Math.floor(Math.random() * candidates.length)]!;
+    let shape: Shape = { ...base, id: `${base.id}-fb-${i}-${Math.random()}` };
+    const transform = Math.floor(Math.random() * 4);
+    if (transform === 1) shape = rotateShape(shape);
+    else if (transform === 2) shape = mirrorShape(shape);
+    else if (transform === 3) shape = rotateShape(mirrorShape(shape));
+    selected.push(shape);
+    totalCells += shape.cells.length;
   }
-
-  // Normalize
-  const minR = Math.min(...cells.map(c => c.r));
-  const minC = Math.min(...cells.map(c => c.c));
-  const normalizedCells = cells.map(c => ({
-    r: c.r - minR,
-    c: c.c - minC,
-    y: c.r - minR, // row corresponds to y
-    x: c.c - minC  // column corresponds to x
-  })).sort((a, b) => a.r - b.r || a.c - b.c);
-
-  return {
-    id,
-    name: `Randomized Shape (${size})`,
-    cells: normalizedCells
-  };
-}
-
-export function generateRandomShapes(gridSize: number): Shape[] {
-  const targetCells = gridSize === 5 ? 13 : gridSize === 6 ? 19 : 26;
-  const shapes: Shape[] = [];
-  let remaining = targetCells;
-  let i = 0;
-
-  while (remaining > 0) {
-    if (remaining <= 6) {
-      const id = `rand-${remaining}-${i}-${Math.random().toString(36).substring(2, 6)}`;
-      shapes.push(generateRandomShape(remaining, id));
-      remaining = 0;
-    } else {
-      const size = Math.floor(Math.random() * 3) + 4; // size in [4, 5, 6]
-      const id = `rand-${size}-${i}-${Math.random().toString(36).substring(2, 6)}`;
-      shapes.push(generateRandomShape(size, id));
-      remaining -= size;
-    }
-    i++;
-  }
-
-  return shapes;
-}
-
-export function generateShapesForGrid(gridSize: number): Shape[] {
-  return generateRandomShapes(gridSize);
+  return selected;
 }
