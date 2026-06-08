@@ -49,13 +49,13 @@ router.get('/history', async (req: Request, res: Response) => {
       return;
     }
 
-    // 2. Fetch matches metadata
+    // 2. Fetch the last 10 matches metadata
     const { data: matchesData, error: mError } = await insforgeAdmin.database
       .from('matches')
-      .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played')
+      .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played, disconnect_flags')
       .in('id', matchIds)
       .order('started_at', { ascending: false })
-      .limit(50);
+      .limit(10);
 
     if (mError) {
       res.status(500).json({ message: mError.message });
@@ -114,18 +114,107 @@ router.get('/history', async (req: Request, res: Response) => {
         winner_id: m.winner_id,
         config: {
           language: m.language,
+          topics: m.topics ?? [],
           topic: m.topics?.[0] ?? '',
           gridSize: m.grid_size ?? 5,
           questionCount: m.rounds_played ?? 10
         },
         started_at: m.started_at,
         ended_at: m.ended_at,
+        rounds_played: m.rounds_played ?? 0,
+        disconnect_flags: m.disconnect_flags ?? {},
         scores,
         player_ids: pids
       };
     });
 
     res.json({ matches: mappedMatches, playerHandles: handlesMap });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ─── GET /matches/:id  (Match Detail) ────────────────────────────────────────
+
+router.get('/:id', async (req: Request, res: Response) => {
+  const id = req.params['id'] as string;
+  if (!id || !isValidUUID(id)) {
+    res.status(400).json({ message: 'Invalid match id' });
+    return;
+  }
+
+  try {
+    // Fetch match row
+    const { data: match, error: mErr } = await insforgeAdmin.database
+      .from('matches')
+      .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played, disconnect_flags')
+      .eq('id', id)
+      .single();
+
+    if (mErr || !match) {
+      res.status(404).json({ message: 'Match not found' });
+      return;
+    }
+
+    // Fetch all players and their scores for this match
+    const { data: playersData, error: pErr } = await insforgeAdmin.database
+      .from('match_players')
+      .select('user_id, final_score, response_stats')
+      .eq('match_id', id);
+
+    if (pErr) {
+      res.status(500).json({ message: pErr.message });
+      return;
+    }
+
+    // Fetch handles
+    const playerIds = (playersData ?? []).map(p => p.user_id);
+    const handlesMap: Record<string, string> = {};
+    if (playerIds.length > 0) {
+      const { data: usersData } = await insforgeAdmin.database
+        .from('users')
+        .select('id, handle')
+        .in('id', playerIds);
+      for (const u of usersData ?? []) {
+        handlesMap[u.id] = u.handle;
+      }
+    }
+
+    const scores: Record<string, number> = {};
+    const responseStats: Record<string, any> = {};
+    for (const p of playersData ?? []) {
+      scores[p.user_id] = p.final_score;
+      responseStats[p.user_id] = p.response_stats ?? {};
+    }
+
+    // Duration in seconds
+    const durationSec = match.started_at && match.ended_at
+      ? Math.round((new Date(match.ended_at).getTime() - new Date(match.started_at).getTime()) / 1000)
+      : null;
+
+    res.json({
+      match: {
+        id: match.id,
+        status: 'ended',
+        winner_id: match.winner_id,
+        config: {
+          language: match.language,
+          topics: match.topics ?? [],
+          topic: match.topics?.[0] ?? '',
+          gridSize: match.grid_size ?? 5,
+          questionCount: match.rounds_played ?? 10
+        },
+        started_at: match.started_at,
+        ended_at: match.ended_at,
+        rounds_played: match.rounds_played ?? 0,
+        duration_sec: durationSec,
+        disconnect_flags: match.disconnect_flags ?? {},
+        scores,
+        responseStats,
+        player_ids: playerIds
+      },
+      playerHandles: handlesMap
+    });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

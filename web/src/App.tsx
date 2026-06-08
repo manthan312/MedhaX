@@ -11,6 +11,7 @@ import LobbyPage from './pages/LobbyPage';
 import PlacementPage from './pages/PlacementPage';
 import GamePage from './pages/GamePage';
 import ResultsPage from './pages/ResultsPage';
+import MatchDetailPage from './pages/MatchDetailPage';
 import ParticleBackground from './components/ParticleBackground';
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -147,6 +148,7 @@ export default function App() {
         <Route path="/placement" element={<Protected><PlacementPage /></Protected>} />
         <Route path="/game"      element={<Protected><GamePage /></Protected>} />
         <Route path="/results"   element={<Protected><ResultsPage /></Protected>} />
+        <Route path="/match/:matchId" element={<Protected><MatchDetailPage /></Protected>} />
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

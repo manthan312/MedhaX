@@ -273,7 +273,11 @@ export default function DashboardPage() {
 
                     return (
                       <div 
-                        key={m.id} 
+                        key={m.id}
+                        onClick={() => navigate(`/match/${m.id}`)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => e.key === 'Enter' && navigate(`/match/${m.id}`)}
                         style={{ 
                           padding: '12px 16px', 
                           borderRadius: 8, 
@@ -281,7 +285,18 @@ export default function DashboardPage() {
                           border: '1px solid var(--border)',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 8
+                          gap: 8,
+                          cursor: 'pointer',
+                          transition: 'border-color 0.18s, background 0.18s',
+                          outline: 'none',
+                        }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(99,102,241,0.4)';
+                          (e.currentTarget as HTMLDivElement).style.background = 'rgba(99,102,241,0.05)';
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
+                          (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)';
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -299,7 +314,10 @@ export default function DashboardPage() {
                           >
                             {outcome}
                           </span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{dateStr}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{dateStr}</span>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', opacity: 0.5 }}>→</span>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
