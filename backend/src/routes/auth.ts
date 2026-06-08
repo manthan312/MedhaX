@@ -166,4 +166,57 @@ router.get('/me', async (req: Request, res: Response) => {
   }
 });
 
+// ─── PUT /auth/me/handle ──────────────────────────────────────────────────────
+
+router.put('/me/handle', async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ message: 'Missing or malformed Authorization header' });
+    return;
+  }
+
+  const token = authHeader.slice(7);
+  const { newHandle } = req.body;
+
+  if (!newHandle || typeof newHandle !== 'string' || newHandle.trim().length < 3) {
+    res.status(400).json({ message: 'Handle must be at least 3 characters long' });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as Record<string, any>;
+    const userId = payload['sub'] ?? payload['id'];
+    
+    if (!userId || !isValidUUID(userId)) {
+      res.status(401).json({ message: 'Invalid token payload' });
+      return;
+    }
+
+    // Check uniqueness
+    const { data: existing, error: checkErr } = await insforgeAdmin.database
+      .from('users')
+      .select('id')
+      .eq('handle', newHandle.trim())
+      .maybeSingle();
+
+    if (checkErr) throw checkErr;
+    if (existing && existing.id !== userId) {
+      res.status(409).json({ message: 'Username is already taken' });
+      return;
+    }
+
+    // Update handle
+    const { error: updateErr } = await insforgeAdmin.database
+      .from('users')
+      .update({ handle: newHandle.trim() })
+      .eq('id', userId);
+
+    if (updateErr) throw updateErr;
+
+    res.json({ handle: newHandle.trim(), username: newHandle.trim() });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message ?? 'Internal server error' });
+  }
+});
+
 export default router;

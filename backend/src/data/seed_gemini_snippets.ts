@@ -120,7 +120,7 @@ const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 async function generateSnippetBatch(combo: Combo, difficulty: string, count: number): Promise<any[]> {
   const ai = getNextGeminiAI();
-  const model = ai.getGenerativeModel({ model: 'gemini-flash-latest' });
+  const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
   const prompt = `
 You are an expert ${combo.language} developer creating educational content.
@@ -130,16 +130,17 @@ For each snippet, the user will be asked to "Predict the exact output" of runnin
 REQUIREMENTS:
 1. The code must be self-contained and runnable.
 2. The code must have a deterministic output (no random, no current time).
-3. Ensure absolute variety: use different structures, edge cases, algorithms, and logical flows. DO NOT repeat the same pattern.
-4. Output should be relatively short (a few lines max) to be typed by the user easily.
-5. If the code throws an error, the expected output should be exactly what the error message or type would be (e.g., "TypeError", "SyntaxError").
+3. ABSOLUTE UNIQUENESS: Do not repeat any code pattern, logic, or trick. Each snippet must be entirely different from the others.
+4. TOUGH & TRICKY: Make the snippets genuinely challenging! Use edge cases, obscure language features, scope trickery, and complex logic flows suitable for the "${difficulty}" level.
+5. Output should be relatively short (a few lines max) to be typed by the user easily.
+6. If the code throws an error, the expected output should be exactly what the error message or type would be (e.g., "TypeError", "SyntaxError").
 
 Return the result as a raw JSON array of objects WITHOUT any markdown formatting, backticks, or \`\`\`json wrappers. It must be valid parsable JSON.
 Format of each object in the array:
 {
   "code_snippet": "string (the source code block, properly formatted)",
-  "expected_output": "string (the exact exact literal string that would be printed to stdout, or the error name)",
-  "explanation": "string (a brief 1-2 sentence explanation of why this output is produced)"
+  "expected_output": "string (the exact literal string that would be printed to stdout, or the error name)",
+  "explanation": "string (a brief 1-2 sentence explanation of why this output is produced and the trick involved)"
 }
 `;
 

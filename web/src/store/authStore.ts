@@ -23,6 +23,7 @@ interface AuthState {
   logout: () => void;
   clearError: () => void;
   validateToken: () => Promise<boolean>;
+  updateHandle: (newHandle: string) => Promise<void>;
 }
 
 function loadFromStorage() {
@@ -114,6 +115,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.removeItem('medhax_token');
     localStorage.removeItem('medhax_user');
     set({ user: null, token: null, isAuthenticated: false, error: null });
+  },
+
+  updateHandle: async (newHandle: string) => {
+    set({ isLoading: true, error: null });
+    const { token, user } = get();
+    if (!token || !user) return;
+    try {
+      const res = await axios.put(`${API}/auth/me/handle`, { newHandle }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const updatedUser = { ...user, handle: res.data.handle, username: res.data.username };
+      localStorage.setItem('medhax_user', JSON.stringify(updatedUser));
+      set({ user: updatedUser, isLoading: false, error: null });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to update username';
+      set({ error: msg, isLoading: false });
+      throw new Error(msg);
+    }
   },
 
   clearError: () => set({ error: null }),

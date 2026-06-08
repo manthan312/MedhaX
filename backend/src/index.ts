@@ -80,8 +80,8 @@ app.get('/api/game-rooms/:matchId/shapes', async (req, res) => {
   if (!state.shapeTemplates) {
     state.shapeTemplates = {};
   }
-  if (!state.shapeTemplates[userId]) {
-    state.shapeTemplates[userId] = generateShapesForGrid(state.config.questionCount);
+  if (!state.shapeTemplates[userId] && state.config.gameMode === 'grid') {
+    state.shapeTemplates[userId] = generateShapesForGrid(state.config.gridSize);
   }
 
   res.json(state.shapeTemplates[userId]);

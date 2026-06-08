@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LanguageLogo from '../components/LanguageLogo';
+import TypewriterEffect from '../components/TypewriterEffect';
 
 const features = [
   { icon: '⚡', color: 'rgba(99,102,241,0.15)', title: 'Real-Time Battles', desc: 'Server-authoritative 45s timers, simultaneous question delivery, and sub-150ms event latency keep the game perfectly synchronized.' },
   { icon: '🎯', color: 'rgba(168,85,247,0.15)', title: 'Battleship Grid', desc: 'Answer correctly to dig into your opponent\'s hidden grid. Find their shapes to sink them — strategy meets knowledge.' },
   { icon: '🧠', color: 'rgba(34,211,238,0.15)', title: 'AI-Powered Hints', desc: 'Stuck on a question? Request a Gemini-powered hint that nudges you in the right direction without giving it away.' },
   { icon: '🏆', color: 'rgba(234,179,8,0.15)', title: 'Ranked Leaderboards', desc: 'Weekly and all-time rankings across Python, JavaScript, Java, and C++. Climb the ladder and prove your coding mastery.' },
-  { icon: '🤝', color: 'rgba(16,185,129,0.15)', title: 'Friend Challenges', desc: 'Add friends, see who\'s online, and challenge them to a match instantly with real-time invitations.' },
+  { icon: '🤝', color: 'rgba(99,102,241,0.15)', title: 'Friend Challenges', desc: 'Add friends, see who\'s online, and challenge them to a match instantly with real-time invitations.' },
   { icon: '🔀', color: 'rgba(239,68,68,0.15)', title: '100+ Questions', desc: 'Curated questions across arrays, strings, OOP, closures, pointers, and more — varying difficulty from beginner to expert.' },
 ];
 
@@ -32,8 +33,7 @@ export default function LandingPage() {
             <span>Real-time Multiplayer Coding Quiz</span>
           </div>
           <h1 className="hero-title fade-in-up stagger-1">
-            Code. Compete.<br />
-            <span className="gradient-text">Conquer.</span>
+            <TypewriterEffect />
           </h1>
           <p className="hero-subtitle fade-in-up stagger-2">
             Test your coding knowledge in real-time 1v1 battles. Answer questions, attack your opponent's hidden grid, and climb the leaderboard.
@@ -59,9 +59,9 @@ export default function LandingPage() {
         <div className="stats-banner">
           {[
             { value: '100+', label: 'Questions' },
-            { value: '10', label: 'Topics' },
+            { value: '10+', label: 'Topics' },
             { value: '<150ms', label: 'Latency' },
-            { value: '4', label: 'Languages' },
+            { value: '8', label: 'Languages' },
           ].map((s) => (
             <div key={s.label} className="stat-item">
               <div className="stat-value">{s.value}</div>
@@ -120,7 +120,7 @@ export default function LandingPage() {
             { lang: 'Java', color: '#f97316', topics: 'OOP, Collections, JVM, Threads' },
             { lang: 'C++', color: '#06b6d4', topics: 'Pointers, STL, Memory' },
             { lang: 'C', color: '#a855f7', topics: 'Basics, Pointers, Structs, Memory' },
-            { lang: 'DBMS', color: '#10b981', topics: 'SQL, Normalization, ACID, Locks' },
+            { lang: 'DBMS', color: '#6366f1', topics: 'SQL, Normalization, ACID, Locks' },
             { lang: 'DSA', color: '#ef4444', topics: 'Structures, Patterns, Graph Algos' },
             { lang: 'Operating System', color: '#6366f1', topics: 'Scheduling, Memory, Sync, Deadlocks' },
           ].map((l) => (
@@ -159,10 +159,22 @@ function MiniGamePreview() {
   const miss = new Set(['0,0','4,4']);
 
   return (
-    <div style={{ display: 'flex', gap: 32, alignItems: 'center', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 20, padding: '24px 32px' }}>
-      <div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Your Grid</div>
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 40px)`, gap: 4 }}>
+    <div style={{
+      display: 'flex', gap: 40, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center',
+      background: 'rgba(10, 15, 30, 0.6)', border: '1px solid var(--border-glow)',
+      borderRadius: 24, padding: '32px 48px', backdropFilter: 'blur(16px)',
+      boxShadow: '0 20px 40px -10px rgba(99,102,241,0.2)'
+    }}>
+      {/* Grid Side */}
+      <div className="float-anim">
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--indigo-light)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Opponent's Grid</span>
+          <span className="badge badge-red glow-pulse" style={{ animationDuration: '3s' }}>ATTACKING</span>
+        </div>
+        <div style={{
+          display: 'grid', gridTemplateColumns: `repeat(${gridSize}, 44px)`, gap: 6,
+          background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 16, border: '1px solid var(--border)'
+        }}>
           {Array.from({ length: gridSize }, (_, r) =>
             Array.from({ length: gridSize }, (_, c) => {
               const k = `${r},${c}`;
@@ -171,10 +183,13 @@ function MiniGamePreview() {
               const isMiss = miss.has(k);
               return (
                 <div key={k} style={{
-                  width: 40, height: 40, borderRadius: 8, border: '1px solid',
-                  borderColor: isHit ? 'var(--red)' : hasShape ? 'var(--indigo)' : 'var(--border)',
-                  background: isHit ? 'rgba(239,68,68,0.25)' : hasShape ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.03)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                  width: 44, height: 44, borderRadius: 8, border: '1px solid',
+                  borderColor: isHit ? 'rgba(239,68,68,0.6)' : isMiss ? 'rgba(255,255,255,0.1)' : hasShape ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.05)',
+                  background: isHit ? 'rgba(239,68,68,0.2)' : isMiss ? 'rgba(255,255,255,0.02)' : hasShape ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.02)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                  boxShadow: isHit ? '0 0 15px rgba(239,68,68,0.4)' : 'none',
+                  transition: 'all 0.3s ease',
+                  cursor: 'crosshair'
                 }}>
                   {isHit ? '💥' : isMiss ? '○' : ''}
                 </div>
@@ -183,21 +198,55 @@ function MiniGamePreview() {
           )}
         </div>
       </div>
-      <div style={{ fontSize: 28, color: 'var(--text-muted)' }}>⚔️</div>
-      <div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Question</div>
-        <div style={{ width: 240, background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
-          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>What is the time complexity of binary search?</div>
-          {['O(n)', 'O(log n)', 'O(n²)', 'O(1)'].map((opt, i) => (
-            <div key={i} style={{
-              padding: '8px 12px', borderRadius: 8, marginBottom: 6, fontSize: 13,
-              background: i === 1 ? 'rgba(16,185,129,0.2)' : i === 0 ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${i === 1 ? 'var(--green)' : i === 0 ? 'var(--red)' : 'var(--border)'}`,
-              color: i === 1 ? '#34d399' : i === 0 ? '#f87171' : 'var(--text-secondary)',
-            }}>
-              {String.fromCharCode(65 + i)}. {opt}
-            </div>
-          ))}
+
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+        <div className="avatar avatar-lg glow-pulse" style={{ background: 'var(--bg-primary)', border: '2px solid var(--indigo)' }}>⚔️</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>VS</div>
+      </div>
+
+      {/* Question Side */}
+      <div className="float-anim" style={{ animationDelay: '1.5s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 12, color: 'var(--green)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5 }}>Live Question</span>
+          <span className="badge badge-green">⏱ 34s</span>
+        </div>
+        <div style={{
+          width: 280, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 16, padding: 20, position: 'relative', overflow: 'hidden'
+        }}>
+          {/* Progress bar background */}
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--border)' }}>
+            <div style={{ width: '60%', height: '100%', background: 'linear-gradient(90deg, var(--green), var(--cyan))', transition: 'width 1s linear' }} />
+          </div>
+
+          <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, lineHeight: 1.6, fontWeight: 500 }}>
+            What is the time complexity of binary search?
+          </div>
+          {['O(n)', 'O(log n)', 'O(n²)', 'O(1)'].map((opt, i) => {
+            const isSelected = i === 1; // Simulate user picked correct
+            return (
+              <div key={i} style={{
+                padding: '10px 14px', borderRadius: 10, marginBottom: 8, fontSize: 13,
+                background: isSelected ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${isSelected ? 'var(--green)' : 'rgba(255,255,255,0.08)'}`,
+                color: isSelected ? '#8B5CF6' : 'var(--text-secondary)',
+                display: 'flex', alignItems: 'center', gap: 12,
+                transform: isSelected ? 'scale(1.02)' : 'none',
+                boxShadow: isSelected ? '0 4px 12px rgba(99,102,241,0.2)' : 'none',
+                transition: 'all 0.2s ease', cursor: 'pointer'
+              }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: '50%', background: isSelected ? 'var(--green)' : 'rgba(255,255,255,0.05)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: isSelected ? '#000' : 'var(--text-muted)',
+                  fontSize: 11, fontWeight: 800
+                }}>
+                  {String.fromCharCode(65 + i)}
+                </div>
+                <span style={{ fontWeight: isSelected ? 600 : 400 }}>{opt}</span>
+                {isSelected && <span style={{ marginLeft: 'auto', fontSize: 14 }}>✓</span>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { useGameStore } from '../store/gameStore';
 import type { PlacedShape } from '../store/gameStore';
 import { initSocket, emit, getSyncedTime } from '../services/socket';
 
-const SHAPE_COLORS = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#EF4444'];
+const SHAPE_COLORS = ['#6366f1', '#8B5CF6', '#EC4899', '#F59E0B', '#6366f1', '#3B82F6', '#EF4444'];
 
 interface ShapeTemplate { id: string; name: string; cells: { r: number; c: number }[]; }
 
@@ -298,7 +298,7 @@ export default function PlacementPage() {
                   : undefined;
                 const activeColor = templatesList[selectedShapeIdx % templatesList.length]
                   ? SHAPE_COLORS[selectedShapeIdx % templatesList.length]
-                  : '#6366F1';
+                  : '#6366f1';
 
                 return (
                   <div key={key}

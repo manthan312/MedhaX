@@ -12,13 +12,13 @@ const TOPICS: Record<string, string[]> = {
     'Python-basics', 'Python-data-types', 'Python-lists', 'Python-tuples', 'Python-dictionaries',
     'Python-sets', 'Python-functions', 'Python-OOP-concepts', 'Python-modules-packages', 'Python-exceptions',
     'Python-file-handling', 'Python-iterators', 'Python-generators', 'Python-decorators', 'Python-multithreading',
-    'Python-multiprocessing', 'Python-GIL', 'Python-list-comprehension', 'Python-lambda-functions'
+    'Python-multiprocessing', 'Python-GIL', 'Python-list-comprehension', 'Python-lambda-functions', 'Python-strings'
   ],
   JavaScript: [
     'JS-variables', 'JS-data-types', 'JS-functions', 'JS-arrays', 'JS-objects',
     'JS-DOM', 'JS-events', 'JS-ES6-features', 'JS-closures', 'JS-hoisting',
     'JS-scope', 'JS-callbacks', 'JS-promises', 'JS-async-await', 'JS-event-loop',
-    'JS-fetch-api', 'JS-storage'
+    'JS-fetch-api', 'JS-storage', 'JS-strings'
   ],
   Java: [
     'Java-basics', 'Java-OOP-concepts', 'Java-classes-objects', 'Java-inheritance', 'Java-polymorphism',
@@ -70,6 +70,7 @@ export default function LobbyPage() {
   const [topics, setTopics] = useState(TOPICS[initLang] ? [TOPICS[initLang][0]] : ['Python-basics']);
   const [players, setPlayersLocal] = useState<{ id: string; handle: string }[]>([]);
   const [readySet, setReadySet] = useState<string[]>([]);
+  const [creatorId, setCreatorId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [copied, setCopied] = useState(false);
   const [myReady, setMyReady] = useState(false);
@@ -143,7 +144,8 @@ export default function LobbyPage() {
 
     socket.on('disconnect', () => setConnected(false));
 
-    socket.on('lobby.update', (data: { players: { id: string; handle: string }[]; readyPlayers: string[]; config?: any }) => {
+    socket.on('lobby.update', (data: { creatorId?: string; players: { id: string; handle: string }[]; readyPlayers: string[]; config?: any }) => {
+      if (data.creatorId) setCreatorId(data.creatorId);
       setPlayersLocal(data.players || []);
       setReadySet(data.readyPlayers || []);
       setReadyPlayers(data.readyPlayers || []);
@@ -224,6 +226,8 @@ export default function LobbyPage() {
   const opponentHandle = opponent?.handle;
   const opponentReady = opponent ? readySet.includes(opponent.id) : false;
 
+  const isCreator = !creatorId || creatorId === user?.id;
+
   return (
     <div className="page">
       <Navbar />
@@ -256,7 +260,10 @@ export default function LobbyPage() {
             {/* Game Mode selection removed */}
 
             <div className="card fade-in-up stagger-1">
-              <div style={{ fontWeight: 700, marginBottom: 16 }}>🌐 Language</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700 }}>🌐 Language</div>
+                {!isCreator && <span className="badge" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)' }}>View Only</span>}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: 10 }}>
                 {LANGUAGES.map(l => {
                   const active = language === l;
@@ -264,7 +271,8 @@ export default function LobbyPage() {
                     <button
                       key={l}
                       className={`lang-tag ${active ? 'active' : ''}`}
-                      onClick={() => updateConfig(l, [TOPICS[l]![0]!], questionCount)}
+                      onClick={() => isCreator && updateConfig(l, [TOPICS[l]![0]!], questionCount)}
+                      disabled={!isCreator}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -274,6 +282,8 @@ export default function LobbyPage() {
                         height: 'auto',
                         width: '100%',
                         justifyContent: 'flex-start',
+                        opacity: !isCreator && !active ? 0.5 : 1,
+                        cursor: isCreator ? 'pointer' : 'default'
                       }}
                     >
                       <LanguageLogo language={l} size={20} />
@@ -288,8 +298,13 @@ export default function LobbyPage() {
               <div style={{ fontWeight: 700, marginBottom: 16 }}>📚 Topics</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {(TOPICS[language] || []).map(t => (
-                  <button key={t} className={`lang-tag ${topics.includes(t) ? 'active' : ''}`}
-                    onClick={() => toggleTopic(t)}>
+                  <button 
+                    key={t} 
+                    className={`lang-tag ${topics.includes(t) ? 'active' : ''}`}
+                    onClick={() => isCreator && toggleTopic(t)}
+                    disabled={!isCreator}
+                    style={{ opacity: !isCreator && !topics.includes(t) ? 0.5 : 1, cursor: isCreator ? 'pointer' : 'default' }}
+                  >
                     {t}
                   </button>
                 ))}
@@ -305,8 +320,9 @@ export default function LobbyPage() {
                   return (
                     <button
                       key={qCount}
-                      onClick={() => updateConfig(language, topics, qCount as 10 | 20 | 30)}
+                      onClick={() => isCreator && updateConfig(language, topics, qCount as 10 | 20 | 30)}
                       className={`lang-tag ${active ? 'active' : ''}`}
+                      disabled={!isCreator}
                       style={{
                         padding: '12px 8px',
                         display: 'flex',
@@ -316,6 +332,8 @@ export default function LobbyPage() {
                         height: 'auto',
                         textAlign: 'center',
                         justifyContent: 'center',
+                        opacity: !isCreator && !active ? 0.5 : 1,
+                        cursor: isCreator ? 'pointer' : 'default'
                       }}
                     >
                       <div style={{ fontWeight: 800, fontSize: 16 }}>{qCount} Qs</div>

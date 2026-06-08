@@ -265,7 +265,7 @@ export default function DashboardPage() {
                       : 'Unknown';
 
                     const outcomeColors = {
-                      WIN: { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.3)' },
+                      WIN: { bg: 'rgba(99,102,241, 0.15)', text: '#6366f1', border: 'rgba(99,102,241, 0.3)' },
                       LOSS: { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' },
                       TIE: { bg: 'rgba(156, 163, 175, 0.15)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.3)' }
                     };

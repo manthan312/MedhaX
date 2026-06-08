@@ -10,12 +10,12 @@
   --bg-glass:      rgba(255,255,255,0.04);
   --border:        rgba(255,255,255,0.08);
   --border-glow:   rgba(99,102,241,0.4);
-  --indigo:        #6366f1;
-  --indigo-light:  #818cf8;
-  --indigo-dark:   #4f46e5;
-  --purple:        #a855f7;
-  --cyan:          #22d3ee;
-  --green:         #10b981;
+  --indigo: #6366f1;  /* emerald-500 */
+  --indigo-light: #818cf8;  /* emerald-400 */
+  --indigo-dark: #4f46e5;  /* emerald-600 */
+  --purple: #a855f7;  /* emerald-100 (greenish white) */
+  --cyan:          #06b6d4;  /* slightly muted cyan to match */
+  --green:         #6366f1;
   --red:           #ef4444;
   --orange:        #f97316;
   --yellow:        #eab308;
@@ -129,7 +129,7 @@ html, body, #root {
   padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;
 }
 .badge-indigo { background: rgba(99,102,241,0.15); color: var(--indigo-light); border: 1px solid rgba(99,102,241,0.3); }
-.badge-green  { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.badge-green  { background: rgba(99,102,241,0.15); color: #8B5CF6; border: 1px solid rgba(99,102,241,0.3); }
 .badge-red    { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
 .badge-yellow { background: rgba(234,179,8,0.15);  color: #fbbf24; border: 1px solid rgba(234,179,8,0.3); }
 .badge-purple { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
@@ -165,7 +165,7 @@ html, body, #root {
   animation: slideInRight 0.3s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   backdrop-filter: blur(12px); border: 1px solid;
 }
-.toast-success { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: #34d399; }
+.toast-success { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3); color: #8B5CF6; }
 .toast-error   { background: rgba(239,68,68,0.15);  border-color: rgba(239,68,68,0.3);  color: #f87171; }
 .toast-info    { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3); color: var(--indigo-light); }
 
@@ -209,7 +209,7 @@ html, body, #root {
 .grid-cell.shape-placed { background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(168,85,247,0.4)); border-color: var(--indigo); }
 .grid-cell.attacked-hit { background: rgba(239,68,68,0.3); border-color: var(--red); }
 .grid-cell.attacked-miss { background: rgba(71,85,105,0.3); border-color: var(--text-muted); }
-.grid-cell.preview-valid { background: rgba(16,185,129,0.2); border-color: var(--green); }
+.grid-cell.preview-valid { background: rgba(99,102,241,0.2); border-color: var(--green); }
 .grid-cell.preview-invalid { background: rgba(239,68,68,0.2); border-color: var(--red); }
 .grid-cell.dig-target { cursor: crosshair; }
 .grid-cell.dig-target:hover { background: rgba(239,68,68,0.2); border-color: var(--red); transform: scale(1.05); }
@@ -245,7 +245,7 @@ html, body, #root {
 .mcq-option:hover:not(:disabled) { border-color: var(--indigo); background: rgba(99,102,241,0.1); transform: translateX(4px); }
 .mcq-option:disabled { cursor: not-allowed; }
 .mcq-option.selected { border-color: var(--indigo); background: rgba(99,102,241,0.15); }
-.mcq-option.correct { border-color: var(--green); background: rgba(16,185,129,0.15); color: #34d399; }
+.mcq-option.correct { border-color: var(--green); background: rgba(99,102,241,0.15); color: #8B5CF6; }
 .mcq-option.wrong   { border-color: var(--red);   background: rgba(239,68,68,0.15);   color: #f87171; }
 .mcq-option .opt-letter {
   width: 28px; height: 28px; border-radius: 50%; background: var(--border);
@@ -314,6 +314,9 @@ html, body, #root {
 @keyframes glow-pulse { 0%, 100% { box-shadow: 0 0 20px rgba(99,102,241,0.3); } 50% { box-shadow: 0 0 40px rgba(99,102,241,0.6); } }
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+.cursor { animation: blink 1s step-end infinite; color: var(--text-primary); margin-left: 2px; }
 
 .fade-in-up { animation: fadeInUp 0.5s ease both; }
 .fade-in    { animation: fadeIn 0.4s ease both; }
@@ -341,7 +344,7 @@ html, body, #root {
 /* ── Ready button ────────────────────────────────────────────────────────── */
 .ready-btn { padding: 18px 48px; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; border-radius: var(--radius-lg); border: none; cursor: pointer; transition: var(--transition); }
 .ready-btn.not-ready { background: var(--bg-card); border: 2px solid var(--border); color: var(--text-secondary); }
-.ready-btn.ready { background: linear-gradient(135deg, var(--green), #059669); color: #fff; box-shadow: 0 0 30px rgba(16,185,129,0.4); animation: glow-pulse 1.5s ease infinite; }
+.ready-btn.ready { background: linear-gradient(135deg, var(--green), #059669); color: #fff; box-shadow: 0 0 30px rgba(99,102,241,0.4); animation: glow-pulse 1.5s ease infinite; }
 
 /* ── Confetti ────────────────────────────────────────────────────────────── */
 .confetti-particle { position: absolute; border-radius: 2px; animation: confetti-fall linear forwards; }

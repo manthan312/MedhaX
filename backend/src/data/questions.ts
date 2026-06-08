@@ -1197,7 +1197,7 @@ function shuffleQuestionChoices(q: Question): Question {
 /**
  * Fetch and filter questions from the database.
  */
-export async function getQuestions(language?: string, topics?: string[]): Promise<Question[]> {
+export async function getQuestions(language?: string, topics?: string[], gameMode?: string): Promise<Question[]> {
   try {
     let query = insforgeAdmin.database
       .from('questions')
@@ -1208,6 +1208,12 @@ export async function getQuestions(language?: string, topics?: string[]): Promis
     }
     if (topics && topics.length > 0) {
       query = query.in('topic', topics);
+    }
+    
+    if (gameMode === 'snippets') {
+      query = query.like('id', 'snip-%');
+    } else {
+      query = query.not('id', 'like', 'snip-%');
     }
 
     const { data, error } = await query;
@@ -1223,13 +1229,74 @@ export async function getQuestions(language?: string, topics?: string[]): Promis
 }
 
 /**
- * Pick `count` random questions from the database.
+ * Pick `count` random questions from the database, scaling progressively from medium to extra-hard.
+ * Ensures no repeats within the selected array. Dummy/easy questions are explicitly filtered out.
  */
-export async function pickQuestions(language: string, topics: string[], count: number): Promise<Question[]> {
+export async function pickQuestions(language: string, topics: string[], count: number, gameMode?: string): Promise<Question[]> {
   try {
-    const pool = await getQuestions(language, topics);
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(count, shuffled.length));
+    const rawPool = await getQuestions(language, topics, gameMode);
+    
+    // Filter out dummy/easy questions completely
+    const validPool = rawPool.filter(q => q.difficulty && q.difficulty !== 'easy');
+    
+    if (validPool.length === 0) {
+      console.warn('[pickQuestions] No valid difficult questions found, falling back to raw pool.');
+      const shuffled = [...rawPool].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, Math.min(count, shuffled.length)).map(q => shuffleQuestionChoices(q));
+    }
+
+    // Separate into difficulty buckets
+    let mediumPool = validPool.filter(q => q.difficulty === 'medium');
+    let hardPool = validPool.filter(q => q.difficulty === 'hard');
+    let extraHardPool = validPool.filter(q => q.difficulty === 'extra-hard');
+
+    // Shuffle each pool independently
+    mediumPool.sort(() => Math.random() - 0.5);
+    hardPool.sort(() => Math.random() - 0.5);
+    extraHardPool.sort(() => Math.random() - 0.5);
+
+    // Calculate strict quotas (33% / 33% / 34%)
+    let mediumQuota = Math.floor(count / 3);
+    let hardQuota = Math.floor(count / 3);
+    let extraHardQuota = count - mediumQuota - hardQuota;
+
+    // Adjust quotas if a pool falls short
+    if (mediumPool.length < mediumQuota) {
+      hardQuota += (mediumQuota - mediumPool.length);
+      mediumQuota = mediumPool.length;
+    }
+    if (hardPool.length < hardQuota) {
+      extraHardQuota += (hardQuota - hardPool.length);
+      hardQuota = hardPool.length;
+    }
+    if (extraHardPool.length < extraHardQuota) {
+      // Flow back to hard, then medium if extra-hard is short
+      const overflow = extraHardQuota - extraHardPool.length;
+      extraHardQuota = extraHardPool.length;
+      if (hardPool.length - hardQuota >= overflow) {
+        hardQuota += overflow;
+      } else {
+        const remainingOverflow = overflow - (hardPool.length - hardQuota);
+        hardQuota = hardPool.length;
+        mediumQuota += remainingOverflow;
+      }
+    }
+
+    // Select the slices strictly without replacement
+    const selectedMedium = mediumPool.slice(0, mediumQuota);
+    const selectedHard = hardPool.slice(0, hardQuota);
+    const selectedExtraHard = extraHardPool.slice(0, extraHardQuota);
+
+    // Concatenate in strict progression order: Medium -> Hard -> Extra-Hard
+    const selected = [...selectedMedium, ...selectedHard, ...selectedExtraHard];
+
+    // If we still fall short (very rare), just pad with whatever is left randomly
+    if (selected.length < count) {
+      const selectedIds = new Set(selected.map(q => q.id));
+      const remaining = validPool.filter(q => !selectedIds.has(q.id)).sort(() => Math.random() - 0.5);
+      selected.push(...remaining.slice(0, count - selected.length));
+    }
+
     return selected.map(q => shuffleQuestionChoices(q));
   } catch (err) {
     console.error('[pickQuestions] Catch error:', err);
@@ -1240,9 +1307,9 @@ export async function pickQuestions(language: string, topics: string[], count: n
 /**
  * Pick `count` high-difficulty questions (hard/extra-hard) for tie-breaker phase.
  */
-export async function pickTieBreakerQuestions(language: string, topics: string[], count: number): Promise<Question[]> {
+export async function pickTieBreakerQuestions(language: string, topics: string[], count: number, gameMode?: string): Promise<Question[]> {
   try {
-    const pool = await getQuestions(language, topics);
+    const pool = await getQuestions(language, topics, gameMode);
     let filtered = pool.filter(q => q.difficulty === 'hard' || q.difficulty === 'extra-hard');
     if (filtered.length < count) {
       filtered = pool;

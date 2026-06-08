@@ -35,6 +35,7 @@ interface JoinLobbyPayload {
     topics: string[];
     gridSize: 5 | 6 | 7;
     questionCount: number;
+    gameMode?: 'grid' | 'snippets';
   };
 }
 
@@ -189,6 +190,7 @@ async function emitLobbyUpdate(io: Server, state: MatchState): Promise<void> {
     });
 
     emitToMatch(io, state, 'lobby.update', {
+      creatorId: state.creatorId,
       players: playersWithHandles,
       readyPlayers: [...state.readyPlayers],
       status: state.status,
@@ -329,6 +331,11 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
       const senderHandle = (userRecord as any)?.handle || 'A player';
 
+      const match = getMatch(matchId);
+      if (match) {
+        match.challengedUserIds.add(targetUserId);
+      }
+      
       const targetSockets = onlineUsers.get(targetUserId);
       if (targetSockets) {
         for (const socketId of targetSockets) {
@@ -336,6 +343,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
             matchId,
             senderId: senderUserId,
             senderHandle,
+            config: match?.config
           });
         }
       }
@@ -437,7 +445,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   });
 
   // ── lobby.update_config ────────────────────────────────────────────────────
-  socket.on('lobby.update_config', (payload: { matchId: string; config: JoinLobbyPayload['config'] }) => {
+  socket.on('lobby.update_config', async (payload: { matchId: string; config: JoinLobbyPayload['config'] }) => {
     const { matchId, config } = payload;
     const state = getMatch(matchId);
     if (!state || state.status !== 'lobby') return;
@@ -447,9 +455,34 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       topics: config.topics,
       gridSize: config.gridSize,
       questionCount: config.questionCount,
+      gameMode: config.gameMode,
     };
 
     emitLobbyUpdate(io, state);
+
+    // Push updated challenge config to pending invited friends
+    const senderUserId = state.creatorId;
+    if (senderUserId) {
+      try {
+        const { data } = await insforgeAdmin.database.from('users').select('handle').eq('id', senderUserId).maybeSingle();
+        const senderHandle = (data as any)?.handle || 'A player';
+        state.challengedUserIds.forEach(targetUserId => {
+          const targetSockets = onlineUsers.get(targetUserId);
+          if (targetSockets) {
+            for (const socketId of targetSockets) {
+              io.to(socketId).emit('challenge.received', {
+                matchId,
+                senderId: senderUserId,
+                senderHandle,
+                config: state.config
+              });
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[lobby.update_config] error updating challenge:', err);
+      }
+    }
   });
 
   // ── player_ready ───────────────────────────────────────────────────────────
@@ -474,6 +507,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         state.config.language,
         state.config.topics,
         state.config.questionCount,
+        state.config.gameMode
       );
 
       const deadline = startPlacement(state);
@@ -496,7 +530,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         // Auto-place for any player who hasn't locked yet
         for (const pid of s.players) {
           if (!s.placementLocked[pid]) {
-            const autoShapes = generateShapesForGrid(s.config.questionCount);
+            const autoShapes = generateShapesForGrid(s.config.gridSize);
             const placed = placeShapes(autoShapes, s.config.gridSize);
             lockPlacement(s, pid, placed);
           }

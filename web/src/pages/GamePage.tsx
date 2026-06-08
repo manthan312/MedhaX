@@ -342,8 +342,8 @@ export default function GamePage() {
                   {answerResult && (
                     <div style={{
                       padding: '12px 20px', borderRadius: 10,
-                      background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)',
-                      color: '#34d399', fontSize: 14, fontWeight: 600,
+                      background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
+                      color: '#8B5CF6', fontSize: 14, fontWeight: 600,
                     }}>
                       ✅ Correct answer was: <strong style={{ fontFamily: 'JetBrains Mono, monospace' }}>
                         {OPTS[answerResult.correctIndex]}. {question.choices[answerResult.correctIndex]}

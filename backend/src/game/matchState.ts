@@ -8,7 +8,7 @@ export interface MatchConfig {
   topics: string[];
   gridSize: 5 | 6 | 7;
   questionCount: number;
-  gameMode?: 'grid';
+  gameMode?: 'grid' | 'snippets';
 }
 
 export interface AnswerRecord {
@@ -18,6 +18,7 @@ export interface AnswerRecord {
 
 export interface MatchState {
   matchId: string;
+  creatorId?: string;                                // who created this match
   players: string[];                                 // user IDs
   playerSockets: Record<string, string>;             // userId -> socketId
   status: MatchStatus;
@@ -37,6 +38,7 @@ export interface MatchState {
   deadline?: number;
 
   shapeTemplates?: Record<string, Shape[]>;          // userId -> custom generated shapes
+  challengedUserIds: Set<string>;                    // targetUserIds who have been challenged
 }
 
 // ─── In-memory match store ────────────────────────────────────────────────────
@@ -66,6 +68,7 @@ export function createMatch(
 ): MatchState {
   const state: MatchState = {
     matchId,
+    creatorId: players[0], // first player is the creator
     players,
     playerSockets: {},
     status: 'lobby',
@@ -84,6 +87,7 @@ export function createMatch(
     readyPlayers: new Set(),
 
     shapeTemplates: {},
+    challengedUserIds: new Set(),
   };
   matches.set(matchId, state);
   return state;

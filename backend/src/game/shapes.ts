@@ -185,28 +185,31 @@ export function placeShapes(shapes: Shape[], gridSize: number): PlacedShape[] {
 }
 
 /**
- * Generate a fixed number of shapes whose total cell count matches the target.
- *
- * Match scale rules:
- *   10 questions → 2 shapes covering exactly 6 cells
- *   20 questions → 3 shapes covering exactly 14 cells
- *   30 questions → 4 shapes covering exactly 25 cells
+ * Generate a random configuration of shapes whose total cell count covers
+ * exactly 50% to 55% of the total grid area.
  *
  * Randomly selects and optionally rotates/mirrors shapes from the catalog.
  * Retries from scratch if a valid combination isn't found within a few hundred attempts.
  */
-export function generateShapesForGrid(questionCount: number): Shape[] {
-  const targetCells = questionCount === 10 ? 6 : questionCount === 20 ? 14 : 25;
-  const maxShapes = questionCount === 10 ? 2 : questionCount === 20 ? 3 : 4;
+export function generateShapesForGrid(gridSize: number): Shape[] {
+  const totalGridArea = gridSize * gridSize;
+  const minTarget = Math.floor(totalGridArea * 0.50);
+  const maxTarget = Math.floor(totalGridArea * 0.55);
+  const targetCells = Math.floor(Math.random() * (maxTarget - minTarget + 1)) + minTarget;
+  
+  // Since our shapes average ~3 cells each, we estimate the max shapes needed
+  // We use ceil(targetCells / 2.5) to give enough slots to reach the target exactly
+  const maxShapes = Math.ceil(targetCells / 2.5);
   const catalog = [...SHAPE_CATALOG];
 
-  // Retry the entire selection from scratch up to 50 times
-  for (let retry = 0; retry < 50; retry++) {
+  // Retry the entire selection from scratch up to 100 times
+  for (let retry = 0; retry < 100; retry++) {
     const selected: Shape[] = [];
     let totalCells = 0;
     let attempts = 0;
 
-    while (selected.length < maxShapes && attempts < 500) {
+    // We keep trying to add shapes until we hit the target or run out of slots
+    while (selected.length < maxShapes && attempts < 1000 && totalCells < targetCells) {
       attempts++;
       const base = catalog[Math.floor(Math.random() * catalog.length)]!;
 
@@ -215,7 +218,7 @@ export function generateShapesForGrid(questionCount: number): Shape[] {
         continue;
       }
 
-      // On the last shape slot, it must fill exactly the remaining cells
+      // On the last shape slot, it MUST fill exactly the remaining cells to hit target
       if (selected.length === maxShapes - 1) {
         const remaining = targetCells - totalCells;
         if (base.cells.length !== remaining) {
@@ -233,14 +236,14 @@ export function generateShapesForGrid(questionCount: number): Shape[] {
       totalCells += shape.cells.length;
     }
 
-    // Accept only if we hit the exact shape count and cell target
-    if (selected.length === maxShapes && totalCells === targetCells) {
+    // Accept only if we hit the exact cell target
+    if (totalCells === targetCells) {
       return selected;
     }
   }
 
   // Fallback: shouldn't happen with the catalog we have, but just in case
-  console.warn(`[shapes] Could not find exact combination for ${questionCount}Q (target: ${targetCells} cells, ${maxShapes} shapes). Returning best-effort.`);
+  console.warn(`[shapes] Could not find exact combination for grid ${gridSize}x${gridSize} (target: ${targetCells} cells). Returning best-effort.`);
   return generateShapesForGridFallback(targetCells, maxShapes, catalog);
 }
 

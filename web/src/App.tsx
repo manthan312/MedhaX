@@ -30,7 +30,12 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
  */
 function AppBootstrap() {
   const { isAuthenticated, token, validateToken, user } = useAuthStore();
-  const [challenge, setChallenge] = useState<{ matchId: string; senderId: string; senderHandle: string } | null>(null);
+  const [challenge, setChallenge] = useState<{ 
+    matchId: string; 
+    senderId: string; 
+    senderHandle: string;
+    config?: { language: string; topics: string[]; questionCount: number; gridSize: number };
+  } | null>(null);
   const navigate = useNavigate();
   const [validated, setValidated] = useState(false);
 
@@ -48,7 +53,7 @@ function AppBootstrap() {
     if (isAuthenticated && token) {
       const socket = initSocket(token);
 
-      const handleChallenge = (data: { matchId: string; senderId: string; senderHandle: string }) => {
+      const handleChallenge = (data: any) => {
         setChallenge(data);
       };
 
@@ -88,10 +93,18 @@ function AppBootstrap() {
       }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⚔️</div>
         <h2 style={{ fontSize: 24, fontWeight: 900, marginBottom: 10 }}>Challenge Received!</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 28, lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginBottom: 20, lineHeight: 1.6 }}>
           <strong style={{ color: 'var(--indigo-light)' }}>{challenge.senderHandle}</strong>
           {' '}has challenged you to a coding battle!
         </p>
+        
+        {challenge.config && (
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginBottom: 24, textAlign: 'left', fontSize: 13, color: 'var(--text-secondary)' }}>
+            <div style={{ marginBottom: 6 }}><strong style={{ color: 'var(--text-primary)' }}>Language:</strong> {challenge.config.language}</div>
+            <div style={{ marginBottom: 6 }}><strong style={{ color: 'var(--text-primary)' }}>Topics:</strong> {challenge.config.topics.join(', ')}</div>
+            <div><strong style={{ color: 'var(--text-primary)' }}>Scale:</strong> {challenge.config.questionCount} Qs ({challenge.config.gridSize}x{challenge.config.gridSize})</div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 12 }}>
           <button className="btn btn-ghost w-full" onClick={() => {
             if (token && challenge) {
