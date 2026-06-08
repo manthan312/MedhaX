@@ -398,10 +398,15 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
 
     emitLobbyUpdate(io, state);
 
-    // Sync game phase to rejoining player
     if (state.status === 'placement') {
       const remainingSeconds = state.deadline ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 90;
       const handles = await getPlayerHandles(state);
+      if (!state.shapeTemplates) {
+        state.shapeTemplates = {};
+      }
+      if (!state.shapeTemplates[joiningUserId]) {
+        state.shapeTemplates[joiningUserId] = generateShapesForGrid(state.config.gridSize);
+      }
       socket.emit('placement.start', {
         deadline_ts: state.deadline || (Date.now() + 90_000),
         remainingSeconds,
@@ -409,6 +414,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         players: state.players,
         playerHandles: handles,
         config: state.config,
+        shapesTemplates: state.shapeTemplates[joiningUserId],
       });
     } else if (state.status === 'question') {
       const q = state.questions[state.currentQuestionIdx];
@@ -513,25 +519,42 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       const deadline = startPlacement(state);
       const handles = await getPlayerHandles(state);
 
-      emitToMatch(io, state, 'placement.start', {
-        deadline_ts: deadline,
-        remainingSeconds: 90,
-        gridSize: state.config.gridSize,
-        players: state.players,
-        playerHandles: handles,
-        config: state.config,
-      });
+      // Generate a UNIQUE set of shape templates for each player
+      // (so both players have the same total coverage ratio but possibly different shapes)
+      if (!state.shapeTemplates) state.shapeTemplates = {};
+      for (const pid of state.players) {
+        state.shapeTemplates[pid] = generateShapesForGrid(state.config.gridSize);
+      }
+
+      // Emit placement.start individually per player so each gets their own shapesTemplates
+      for (const pid of state.players) {
+        const sid = state.playerSockets[pid];
+        if (sid) {
+          io.to(sid).emit('placement.start', {
+            deadline_ts: deadline,
+            remainingSeconds: 90,
+            gridSize: state.config.gridSize,
+            players: state.players,
+            playerHandles: handles,
+            config: state.config,
+            shapesTemplates: state.shapeTemplates[pid],
+          });
+        }
+      }
 
       // Auto-force placement lock after 90s
       state.timer = setTimeout(() => {
         const s = getMatch(matchId);
         if (!s || s.status !== 'placement') return;
 
-        // Auto-place for any player who hasn't locked yet
+        // Auto-place for any player who hasn't locked yet.
+        // Reuse the templates that were sent to the player at placement start.
+        if (!s.shapeTemplates) s.shapeTemplates = {};
         for (const pid of s.players) {
           if (!s.placementLocked[pid]) {
-            const autoShapes = generateShapesForGrid(s.config.gridSize);
-            const placed = placeShapes(autoShapes, s.config.gridSize);
+            // Use the player's original templates so coverage is guaranteed correct
+            const templates = s.shapeTemplates[pid] ?? generateShapesForGrid(s.config.gridSize);
+            const placed = placeShapes(templates, s.config.gridSize);
             lockPlacement(s, pid, placed);
           }
         }
@@ -558,10 +581,23 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
       return;
     }
 
-    // Server-side validation
+    // Server-side validation: check no overlaps and all cells are within grid
     if (!validateClientShapes(shapes, state.config.gridSize)) {
-      socket.emit('placement_invalid', { message: 'Invalid shape placement — please retry' });
+      socket.emit('placement_invalid', { message: 'Invalid shape placement — shapes overlap or are out of bounds' });
       return;
+    }
+
+    // Strict cell-count check: total cells placed must match the templates sent to this player
+    const templates = state.shapeTemplates?.[lockingUserId];
+    if (templates) {
+      const expectedCells = templates.reduce((sum, t) => sum + t.cells.length, 0);
+      const actualCells = shapes.reduce((sum, s) => sum + s.cells.length, 0);
+      if (actualCells !== expectedCells) {
+        socket.emit('placement_invalid', {
+          message: `Placement must cover exactly ${expectedCells} cells (your grid requires ${expectedCells} cells). You placed ${actualCells}.`,
+        });
+        return;
+      }
     }
 
     const allLocked = lockPlacement(state, lockingUserId, shapes);

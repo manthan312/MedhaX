@@ -45,9 +45,6 @@ export default function PlacementPage() {
   const navigate = useNavigate();
 
   const gridSize = config?.gridSize || 5;
-  const questionCount = config?.questionCount || 10;
-  const targetCells = questionCount === 10 ? 6 : questionCount === 20 ? 14 : 25;
-
   const [placed, setPlaced] = useState<PlacedShape[]>([]);
   const [selectedShapeIdx, setSelectedShapeIdx] = useState(0);
   const [rotation, setRotation] = useState(0);
@@ -58,7 +55,13 @@ export default function PlacementPage() {
   const [localDeadline, setLocalDeadline] = useState<number | null>(null);
   const [shapesTemplates, setShapesTemplates] = useState<ShapeTemplate[]>([]);
 
+  // templates and targetCells are derived from server-sent shapesTemplates.
+  // Before the server sends them, fall back to built-in SHAPES and a 52% default.
   const templates = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
+  // targetCells = exact sum of cells across all templates assigned by the server
+  const targetCells = shapesTemplates.length > 0
+    ? shapesTemplates.reduce((a, s) => a + s.cells.length, 0)
+    : Math.floor(gridSize * gridSize * 0.52);
 
   const currentCells = (() => {
     let cells = templates[selectedShapeIdx % templates.length]?.cells || [];
@@ -73,6 +76,7 @@ export default function PlacementPage() {
     const grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(false));
     const newPlaced = [...currentPlaced];
 
+    // Mark already-placed cells
     for (const shape of newPlaced) {
       for (const cell of shape.cells) {
         const r = shape.originR + cell.r;
@@ -83,43 +87,68 @@ export default function PlacementPage() {
       }
     }
 
-    const countCells = (shapes: PlacedShape[]) => shapes.reduce((a, s) => a + s.cells.length, 0);
-
-    let attempts = 0;
+    // Find which templates are not yet placed (each template should be placed exactly once)
     const templatesList = shapesTemplates.length > 0 ? shapesTemplates : SHAPES;
-    while (countCells(newPlaced) < targetCells && attempts < 500) {
-      attempts++;
-      const template = templatesList[Math.floor(Math.random() * templatesList.length)]!;
-      let cells = template.cells;
-      const rot = Math.floor(Math.random() * 4);
-      for (let i = 0; i < rot; i++) cells = rotateShape(cells);
+    const remaining = templatesList.filter(t => !newPlaced.some(p => p.id.startsWith(t.id)));
 
-      const originR = Math.floor(Math.random() * gridSize);
-      const originC = Math.floor(Math.random() * gridSize);
+    // For each remaining template, find a random valid origin and place it
+    for (const template of remaining) {
+      // Try all 4 rotations of this template
+      let placed = false;
+      const rotations = [0, 1, 2, 3];
+      // Shuffle rotations
+      for (let i = rotations.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rotations[i], rotations[j]] = [rotations[j]!, rotations[i]!];
+      }
 
-      const fits = cells.every(c => {
-        const gr = originR + c.r;
-        const gc = originC + c.c;
-        return gr >= 0 && gr < gridSize && gc >= 0 && gc < gridSize && !grid[gr][gc];
-      });
+      for (const rot of rotations) {
+        let cells = template.cells;
+        for (let i = 0; i < rot; i++) cells = rotateShape(cells);
 
-      if (fits) {
-        if (countCells(newPlaced) + cells.length > targetCells) {
-          continue;
+        // Build list of all valid origins, shuffled
+        const origins: [number, number][] = [];
+        for (let r = 0; r < gridSize; r++) {
+          for (let c = 0; c < gridSize; c++) {
+            origins.push([r, c]);
+          }
         }
-        const newShape: PlacedShape = {
-          id: `${template.id}-${Date.now()}-${Math.random()}`,
-          name: template.name,
-          cells,
-          originR,
-          originC
-        };
-        newPlaced.push(newShape);
-        for (const c of cells) {
-          grid[originR + c.r][originC + c.c] = true;
+        for (let i = origins.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [origins[i], origins[j]] = [origins[j]!, origins[i]!];
         }
+
+        for (const [originR, originC] of origins) {
+          const fits = cells.every(c => {
+            const gr = originR + c.r;
+            const gc = originC + c.c;
+            return gr >= 0 && gr < gridSize && gc >= 0 && gc < gridSize && !grid[gr][gc];
+          });
+
+          if (fits) {
+            const newShape: PlacedShape = {
+              id: `${template.id}-autofill-${Date.now()}-${Math.random()}`,
+              name: template.name,
+              cells,
+              originR,
+              originC
+            };
+            newPlaced.push(newShape);
+            for (const c of cells) {
+              grid[originR + c.r][originC + c.c] = true;
+            }
+            placed = true;
+            break;
+          }
+        }
+        if (placed) break;
+      }
+
+      if (!placed) {
+        console.warn(`[autoFillGrid] Could not place template "${template.id}" — grid may be too full`);
       }
     }
+
     return newPlaced;
   };
 
@@ -338,7 +367,7 @@ export default function PlacementPage() {
           <div style={{ marginTop: 20, maxWidth: 400 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
               <span>Coverage</span>
-              <span>{totalPlaced} / ~{targetCells} cells</span>
+              <span>{totalPlaced} / {targetCells} cells required</span>
             </div>
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${pct * 100}%`, transition: 'width 0.3s ease' }} />
