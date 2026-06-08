@@ -11,6 +11,7 @@ export async function seedQuestions(): Promise<void> {
 
     if (error) {
       console.log('⚠️ [seed] "questions" table not found or not accessible. Skipping auto-seeding. Make sure you run the SQL migration!');
+      console.error('Exact error:', error);
       return;
     }
 

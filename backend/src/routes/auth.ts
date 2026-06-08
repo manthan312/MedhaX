@@ -26,7 +26,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     const { data, error } = await insforge.auth.signUp({
       email,
       password,
-      name: username,
+      options: { data: { name: username } }
     });
 
     if (error) {

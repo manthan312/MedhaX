@@ -1,14 +1,16 @@
 import { insforgeAdmin } from '../config/insforge.js';
 
 async function countQuestions() {
-  const { count, error } = await insforgeAdmin.database
+  const response = await insforgeAdmin.database
     .from('questions')
     .select('*', { count: 'exact', head: true });
 
-  if (error) {
-    console.error("Error fetching count:", error);
+  console.log("Response:", response);
+
+  if (response.error) {
+    console.error("Error fetching count:", response.error);
   } else {
-    console.log(`EXACT TOTAL MCQs IN DB: ${count}`);
+    console.log(`EXACT TOTAL MCQs IN DB: ${response.count}`);
   }
   process.exit(0);
 }
