@@ -27,5 +27,6 @@ const cleanEnvVar = (val: string | undefined): string => {
 export const JWT_SECRET = cleanEnvVar(process.env.JWT_SECRET) || 'medhax_super_secret_jwt_2024';
 export const PORT = parseInt(process.env.PORT ?? '8080', 10);
 export const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL) || 'https://llerufiektzdfelaovzj.supabase.co';
-export const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY);
-export const SUPABASE_SERVICE_ROLE_KEY = cleanEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY);
+export const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsZXJ1Zmlla3R6ZGZlbGFvdnpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzY1NzgsImV4cCI6MjA5NjUxMjU3OH0.dZSBKrCENnR2DxBcocK0hO6mR60cGlmloThc-8BvF_s';
+export const SUPABASE_SERVICE_ROLE_KEY = cleanEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxsZXJ1Zmlla3R6ZGZlbGFvdnpqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDkzNjU3OCwiZXhwIjoyMDk2NTEyNTc4fQ.h7AiyFxnvChmafCE_oNDAFAQleynMjiK8to5sPtrO4o';
+

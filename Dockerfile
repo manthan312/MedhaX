@@ -25,6 +25,9 @@ RUN npm ci --omit=dev
 # Copy compiled output from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy .env file so environment variables are available at runtime
+COPY backend/.env ./.env
+
 # Expose the port Express listens on
 EXPOSE 8080
 
