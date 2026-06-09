@@ -22,7 +22,7 @@ import {
 } from '../game/shapes.js';
 import { pickQuestions } from '../data/questions.js';
 import { getGeminiKey } from '../config/gemini.js';
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { onlineUsers } from '../config/online.js';
 
 // ─── Types for socket payloads ────────────────────────────────────────────────
@@ -107,7 +107,7 @@ export function validateClientShapes(shapes: PlacedShape[], gridSize: number): b
 
 async function getPlayerHandles(state: MatchState): Promise<Record<string, string>> {
   try {
-    const { data: users } = await insforgeAdmin.database
+    const { data: users } = await supabaseAdmin.database
       .from('users')
       .select('id, handle')
       .in('id', state.players);
@@ -125,7 +125,7 @@ async function getPlayerHandles(state: MatchState): Promise<Record<string, strin
 /** Persist match result to the database. */
 async function persistMatchResult(state: MatchState, winnerId: string | null): Promise<void> {
   try {
-    await insforgeAdmin.database.from('matches').insert([
+    await supabaseAdmin.database.from('matches').insert([
       {
         id: state.matchId,
         language: state.config.language,
@@ -144,7 +144,7 @@ async function persistMatchResult(state: MatchState, winnerId: string | null): P
       final_score: state.scores[userId] ?? 0,
       response_stats: {}
     }));
-    await insforgeAdmin.database.from('match_players').insert(playerInserts);
+    await supabaseAdmin.database.from('match_players').insert(playerInserts);
   } catch (err) {
     console.error('[matchSocket] Failed to persist match result:', err);
   }
@@ -176,7 +176,7 @@ async function generateHint(questionPrompt: string, choices: string[]): Promise<
 /** Fetch user handles and emit lobby updates to clients. */
 async function emitLobbyUpdate(io: Server, state: MatchState): Promise<void> {
   try {
-    const { data: users } = await insforgeAdmin.database
+    const { data: users } = await supabaseAdmin.database
       .from('users')
       .select('id, handle')
       .in('id', state.players);
@@ -323,7 +323,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     if (!targetUserId) return;
 
     try {
-      const { data: userRecord } = await insforgeAdmin.database
+      const { data: userRecord } = await supabaseAdmin.database
         .from('users')
         .select('handle')
         .eq('id', senderUserId)
@@ -470,7 +470,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     const senderUserId = state.creatorId;
     if (senderUserId) {
       try {
-        const { data } = await insforgeAdmin.database.from('users').select('handle').eq('id', senderUserId).maybeSingle();
+        const { data } = await supabaseAdmin.database.from('users').select('handle').eq('id', senderUserId).maybeSingle();
         const senderHandle = (data as any)?.handle || 'A player';
         state.challengedUserIds.forEach(targetUserId => {
           const targetSockets = onlineUsers.get(targetUserId);

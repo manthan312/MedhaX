@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createAdminClient } from '@insforge/sdk';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
@@ -8,12 +8,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
-const INSFORGE_URL = process.env.INSFORGE_URL ?? '';
-const INSFORGE_SERVICE_KEY = process.env.INSFORGE_SERVICE_KEY ?? process.env.INSFORGE_ANON_KEY ?? '';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
 const GEMINI_KEYS_RAW = process.env.GEMINI_API_KEYS ?? process.env.GEMINI_API_KEY ?? '';
 
 const geminiKeys = GEMINI_KEYS_RAW.split(',').map(k => k.trim()).filter(Boolean);
-const db = createAdminClient({ baseUrl: INSFORGE_URL, apiKey: INSFORGE_SERVICE_KEY });
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 let currentKeyIndex = 0;
 function getNextGeminiAI() {
@@ -128,7 +128,7 @@ async function runSeeder() {
           const CHUNK = 10;
           for (let i = 0; i < comboRows.length; i += CHUNK) {
             const batch = comboRows.slice(i, i + CHUNK);
-            const { error } = await db.database.from('questions').insert(batch);
+            const { error } = await db.from('questions').insert(batch);
             if (error) {
               console.error(`\n  ❌ Chunk error:`, error.message);
             } else {

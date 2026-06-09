@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { insforge, insforgeAdmin } from '../config/insforge.js';
+import { supabase, supabaseAdmin } from '../config/supabase.js';
 import { JWT_SECRET } from '../config/env.js';
 
 const router = Router();
@@ -23,7 +23,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 
   try {
     // 1. Create auth user
-    const { data, error } = await insforge.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { name: username } }
@@ -43,7 +43,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     const userId = (data as any).user?.id ?? (data as any).id;
     if (userId) {
       const emailHash = Buffer.from(email.trim().toLowerCase()).toString('base64');
-      await insforgeAdmin.database
+      await supabaseAdmin.database
         .from('users')
         .insert([{ id: userId, handle: username, email_hash: emailHash }]);
     }
@@ -78,7 +78,7 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   try {
-    const { data, error } = await insforge.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: identifier,
       password,
     });
@@ -97,7 +97,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const userEmail = (data as any).user?.email ?? identifier;
 
     // Fetch user profile from DB
-    const { data: dbUser } = await insforgeAdmin.database
+    const { data: dbUser } = await supabaseAdmin.database
       .from('users')
       .select('handle')
       .eq('id', userId)
@@ -143,7 +143,7 @@ router.get('/me', async (req: Request, res: Response) => {
     }
 
     // Fetch user profile from DB
-    const { data, error } = await insforgeAdmin.database
+    const { data, error } = await supabaseAdmin.database
       .from('users')
       .select('id, handle, email_hash, created_at')
       .eq('id', userId);
@@ -193,7 +193,7 @@ router.put('/me/handle', async (req: Request, res: Response) => {
     }
 
     // Check uniqueness
-    const { data: existing, error: checkErr } = await insforgeAdmin.database
+    const { data: existing, error: checkErr } = await supabaseAdmin.database
       .from('users')
       .select('id')
       .eq('handle', newHandle.trim())
@@ -206,7 +206,7 @@ router.put('/me/handle', async (req: Request, res: Response) => {
     }
 
     // Update handle
-    const { error: updateErr } = await insforgeAdmin.database
+    const { error: updateErr } = await supabaseAdmin.database
       .from('users')
       .update({ handle: newHandle.trim() })
       .eq('id', userId);

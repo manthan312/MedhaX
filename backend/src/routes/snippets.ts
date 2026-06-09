@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 const router = Router();
 
@@ -7,7 +7,7 @@ const router = Router();
 router.get('/training', async (req: Request, res: Response) => {
   try {
     // Fetch some random snippets from the database. Since we mapped them to the `questions` table with `id` starting with `snip-`, we filter by that.
-    const { data, error } = await insforgeAdmin.database
+    const { data, error } = await supabaseAdmin.database
       .from('questions')
       .select('id, language, topic, difficulty, prompt, choices, explanation')
       .like('id', 'snip-%')

@@ -9,7 +9,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createAdminClient } from '@insforge/sdk';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
@@ -19,12 +19,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
-const INSFORGE_URL        = process.env.INSFORGE_URL        ?? '';
-const INSFORGE_SERVICE_KEY = process.env.INSFORGE_SERVICE_KEY ?? process.env.INSFORGE_ANON_KEY ?? '';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
 const GEMINI_KEYS_RAW     = process.env.GEMINI_API_KEYS     ?? process.env.GEMINI_API_KEY ?? '';
 
-if (!INSFORGE_URL || !INSFORGE_SERVICE_KEY) {
-  console.error('❌  Missing INSFORGE_URL / INSFORGE_SERVICE_KEY in .env');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('❌  Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env');
   process.exit(1);
 }
 
@@ -36,7 +36,7 @@ if (!GEMINI_KEYS_RAW) {
 const geminiKeys = GEMINI_KEYS_RAW.split(',').map(k => k.trim()).filter(Boolean);
 console.log(`🔑  Loaded ${geminiKeys.length} Gemini API keys for rotation.`);
 
-const db = createAdminClient({ baseUrl: INSFORGE_URL, apiKey: INSFORGE_SERVICE_KEY });
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── 139 Subtopics configuration ──────────────────────────────────────────────
 const TOPICS: Record<string, string[]> = {
@@ -178,7 +178,7 @@ async function main() {
     console.log(`\n⏳ Processing: ${combo.language} / ${combo.topic}`);
     
     // Check if we already seeded this topic
-    const { data: existing } = await db.database.from('questions').select('id').match({ language: combo.language, topic: combo.topic }).like('id', 'snip-%').limit(1);
+    const { data: existing } = await db.from('questions').select('id').match({ language: combo.language, topic: combo.topic }).like('id', 'snip-%').limit(1);
     if (existing && existing.length > 0) {
       console.log(`  ⏭️  Skipping, already seeded!`);
       continue;
@@ -226,7 +226,7 @@ async function main() {
 
     if (comboRows.length > 0) {
         // Clear existing for this topic to be safe
-        await db.database.from('questions').delete().match({ language: combo.language, topic: combo.topic }).like('id', 'snip-%');
+        await db.from('questions').delete().match({ language: combo.language, topic: combo.topic }).like('id', 'snip-%');
         
         // Insert
         const CHUNK = 10;
@@ -246,7 +246,7 @@ async function main() {
             explanation: b.explanation
           }));
 
-          const { error } = await db.database.from('questions').insert(mappedBatch);
+          const { error } = await db.from('questions').insert(mappedBatch);
           if (error) {
             console.error(`\n  ❌  Chunk error:`, error.message);
           } else {

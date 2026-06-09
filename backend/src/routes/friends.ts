@@ -1,10 +1,11 @@
 import { Router, Request, Response } from 'express';
+import express from 'express';
 import jwt from 'jsonwebtoken';
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { isOnline, getOnlineUserIds, onlineUsers } from '../config/online.js';
 import { JWT_SECRET } from '../config/env.js';
 
-interface AuthenticatedRequest extends Request {
+interface AuthenticatedRequest extends express.Request {
   userId?: string;
 }
 
@@ -48,7 +49,7 @@ usersRouter.get('/search', requireAuth, async (req: AuthenticatedRequest, res: R
   const myUserId = req.userId!;
 
   try {
-    let query = insforgeAdmin.database.from('users').select('id, handle');
+    let query = supabaseAdmin.database.from('users').select('id, handle');
 
     if (q && q.length >= 1) {
       query = query.ilike('handle', `%${q}%`);
@@ -89,7 +90,7 @@ usersRouter.get('/online', requireAuth, async (req: AuthenticatedRequest, res: R
   }
 
   try {
-    const { data, error } = await insforgeAdmin.database
+    const { data, error } = await supabaseAdmin.database
       .from('users')
       .select('id, handle')
       .in('id', onlineIds);
@@ -132,7 +133,7 @@ friendsRouter.post('/request', requireAuth, async (req: AuthenticatedRequest, re
 
   try {
     // Check if friendship or request already exists in either direction
-    const { data: existing, error: checkError } = await insforgeAdmin.database
+    const { data: existing, error: checkError } = await supabaseAdmin.database
       .from('friendships')
       .select('*')
       .or(`and(user_id.eq.${fromUserId},friend_id.eq.${toUserId}),and(user_id.eq.${toUserId},friend_id.eq.${fromUserId})`)
@@ -156,7 +157,7 @@ friendsRouter.post('/request', requireAuth, async (req: AuthenticatedRequest, re
           return;
         } else {
           // Other user had already sent ME a request → auto-accept
-          const { error: acceptError } = await insforgeAdmin.database
+          const { error: acceptError } = await supabaseAdmin.database
             .from('friendships')
             .update({ status: 'accepted', updated_at: new Date().toISOString() })
             .eq('id', existing.id);
@@ -197,7 +198,7 @@ friendsRouter.post('/request', requireAuth, async (req: AuthenticatedRequest, re
     }
 
     // Insert new pending request
-    const { data: inserted, error: insertError } = await insforgeAdmin.database
+    const { data: inserted, error: insertError } = await supabaseAdmin.database
       .from('friendships')
       .insert([{
         user_id: fromUserId,
@@ -248,7 +249,7 @@ friendsRouter.post('/respond', requireAuth, async (req: AuthenticatedRequest, re
   }
 
   try {
-    const { data: request, error: fetchError } = await insforgeAdmin.database
+    const { data: request, error: fetchError } = await supabaseAdmin.database
       .from('friendships')
       .select('*')
       .eq('id', friendshipId)
@@ -266,7 +267,7 @@ friendsRouter.post('/respond', requireAuth, async (req: AuthenticatedRequest, re
     }
 
     if (accept) {
-      const { error: updateError } = await insforgeAdmin.database
+      const { error: updateError } = await supabaseAdmin.database
         .from('friendships')
         .update({ status: 'accepted', updated_at: new Date().toISOString() })
         .eq('id', friendshipId);
@@ -304,7 +305,7 @@ friendsRouter.post('/respond', requireAuth, async (req: AuthenticatedRequest, re
       res.json({ message: 'Friend request accepted' });
     } else {
       // Decline: delete the request record
-      const { error: deleteError } = await insforgeAdmin.database
+      const { error: deleteError } = await supabaseAdmin.database
         .from('friendships')
         .delete()
         .eq('id', friendshipId);
@@ -343,7 +344,7 @@ friendsRouter.get('/', requireAuth, async (req: AuthenticatedRequest, res: Respo
 
   try {
     // 1. Fetch ALL friendships involving this user
-    const { data: allRecords, error: allError } = await insforgeAdmin.database
+    const { data: allRecords, error: allError } = await supabaseAdmin.database
       .from('friendships')
       .select('id, user_id, friend_id, status, created_at')
       .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
@@ -372,7 +373,7 @@ friendsRouter.get('/', requireAuth, async (req: AuthenticatedRequest, res: Respo
     // Batch fetch user profiles
     let userMap: Record<string, { id: string; handle: string }> = {};
     if (allUserIds.size > 0) {
-      const { data: usersData } = await insforgeAdmin.database
+      const { data: usersData } = await supabaseAdmin.database
         .from('users')
         .select('id, handle')
         .in('id', [...allUserIds]);

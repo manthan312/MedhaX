@@ -1152,7 +1152,7 @@ export const questions: Question[] = [
   },
 ];
 
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 /**
  * Filter questions locally by language and/or topic.
@@ -1199,7 +1199,7 @@ function shuffleQuestionChoices(q: Question): Question {
  */
 export async function getQuestions(language?: string, topics?: string[], gameMode?: string): Promise<Question[]> {
   try {
-    let query = insforgeAdmin.database
+    let query = supabaseAdmin.database
       .from('questions')
       .select('id, language, topic, difficulty, prompt, choices, correct_index, explanation');
 

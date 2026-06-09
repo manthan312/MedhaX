@@ -1,10 +1,10 @@
 import { questions } from './questions.js';
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 export async function seedQuestions(): Promise<void> {
   try {
     // Check if table exists and has records
-    const { data, error } = await insforgeAdmin.database
+    const { data, error } = await supabaseAdmin.database
       .from('questions')
       .select('id')
       .limit(1);
@@ -31,7 +31,7 @@ export async function seedQuestions(): Promise<void> {
           explanation: q.explanation
         }));
 
-        const { error: insertError } = await insforgeAdmin.database
+        const { error: insertError } = await supabaseAdmin.database
           .from('questions')
           .insert(batch);
 

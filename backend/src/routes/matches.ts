@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 import { JWT_SECRET } from '../config/env.js';
 
 const router = Router();
@@ -33,7 +33,7 @@ router.get('/history', async (req: Request, res: Response) => {
 
   try {
     // 1. Fetch match IDs for the user
-    const { data: playerMatches, error: pmError } = await insforgeAdmin.database
+    const { data: playerMatches, error: pmError } = await supabaseAdmin.database
       .from('match_players')
       .select('match_id')
       .eq('user_id', userId);
@@ -50,7 +50,7 @@ router.get('/history', async (req: Request, res: Response) => {
     }
 
     // 2. Fetch the last 10 matches metadata
-    const { data: matchesData, error: mError } = await insforgeAdmin.database
+    const { data: matchesData, error: mError } = await supabaseAdmin.database
       .from('matches')
       .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played, disconnect_flags')
       .in('id', matchIds)
@@ -69,7 +69,7 @@ router.get('/history', async (req: Request, res: Response) => {
     }
 
     // 3. Fetch all players and scores for these matches
-    const { data: allPlayersData, error: apError } = await insforgeAdmin.database
+    const { data: allPlayersData, error: apError } = await supabaseAdmin.database
       .from('match_players')
       .select('match_id, user_id, final_score')
       .in('match_id', activeMatchIds);
@@ -87,7 +87,7 @@ router.get('/history', async (req: Request, res: Response) => {
 
     const handlesMap: Record<string, string> = {};
     if (playerIds.size > 0) {
-      const { data: usersData, error: usersError } = await insforgeAdmin.database
+      const { data: usersData, error: usersError } = await supabaseAdmin.database
         .from('users')
         .select('id, handle')
         .in('id', Array.from(playerIds));
@@ -145,7 +145,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
   try {
     // Fetch match row
-    const { data: match, error: mErr } = await insforgeAdmin.database
+    const { data: match, error: mErr } = await supabaseAdmin.database
       .from('matches')
       .select('id, language, topics, grid_size, winner_id, started_at, ended_at, rounds_played, disconnect_flags')
       .eq('id', id)
@@ -157,7 +157,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     // Fetch all players and their scores for this match
-    const { data: playersData, error: pErr } = await insforgeAdmin.database
+    const { data: playersData, error: pErr } = await supabaseAdmin.database
       .from('match_players')
       .select('user_id, final_score, response_stats')
       .eq('match_id', id);
@@ -171,7 +171,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     const playerIds = (playersData ?? []).map(p => p.user_id);
     const handlesMap: Record<string, string> = {};
     if (playerIds.length > 0) {
-      const { data: usersData } = await insforgeAdmin.database
+      const { data: usersData } = await supabaseAdmin.database
         .from('users')
         .select('id, handle')
         .in('id', playerIds);
@@ -226,7 +226,7 @@ router.get('/leaderboards', async (req: Request, res: Response) => {
   const period = (req.query['period'] as string | undefined) ?? 'all-time';
 
   try {
-    let query = insforgeAdmin.database
+    let query = supabaseAdmin.database
       .from('leaderboard')
       .select('user_id, handle, wins, total_matches, win_rate')
       .order('wins', { ascending: false })
@@ -234,7 +234,7 @@ router.get('/leaderboards', async (req: Request, res: Response) => {
 
     if (period === 'weekly') {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      query = insforgeAdmin.database
+      query = supabaseAdmin.database
         .from('leaderboard_weekly')
         .select('user_id, handle, wins, total_matches, win_rate')
         .gte('period_start', weekAgo)

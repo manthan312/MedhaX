@@ -1,4 +1,4 @@
-import { insforgeAdmin } from './config/insforge.js';
+import { supabaseAdmin } from './config/supabase.js';
 
 async function run() {
   console.log("Fetching snippet counts...");
@@ -7,7 +7,7 @@ async function run() {
   const limit = 1000;
   
   while (true) {
-      const { data, error } = await insforgeAdmin.database
+      const { data, error } = await supabaseAdmin.database
         .from('questions')
         .select('topic')
         .like('id', 'snip-%')

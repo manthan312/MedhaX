@@ -1,7 +1,7 @@
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 async function countQuestions() {
-  const response = await insforgeAdmin.database
+  const response = await supabaseAdmin.database
     .from('questions')
     .select('*', { count: 'exact', head: true });
 

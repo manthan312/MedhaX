@@ -12,7 +12,7 @@ import { usersRouter, friendsRouter } from './routes/friends.js';
 import { registerMatchHandlers, clearMatchTimer, validateClientShapes, advanceToQuestion } from './sockets/matchSocket.js';
 import { onlineUsers } from './config/online.js';
 import { seedQuestions } from './data/seed.js';
-import { insforgeAdmin } from './config/insforge.js';
+import { supabaseAdmin } from './config/supabase.js';
 import { getMatch, lockPlacement } from './game/matchState.js';
 import { generateShapesForGrid } from './game/shapes.js';
 
@@ -205,7 +205,7 @@ io.use((socket, next) => {
 
 async function broadcastStatus(userId: string, online: boolean) {
   try {
-    const { data: friendships } = await insforgeAdmin.database
+    const { data: friendships } = await supabaseAdmin.database
       .from('friendships')
       .select('user_id, friend_id')
       .eq('status', 'accepted')

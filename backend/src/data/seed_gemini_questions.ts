@@ -9,7 +9,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { createAdminClient } from '@insforge/sdk';
+import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
@@ -19,12 +19,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: resolve(__dirname, '../../.env') });
 
-const INSFORGE_URL        = process.env.INSFORGE_URL        ?? '';
-const INSFORGE_SERVICE_KEY = process.env.INSFORGE_SERVICE_KEY ?? process.env.INSFORGE_ANON_KEY ?? '';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
 const GEMINI_KEYS_RAW     = process.env.GEMINI_API_KEYS     ?? process.env.GEMINI_API_KEY ?? '';
 
-if (!INSFORGE_URL || !INSFORGE_SERVICE_KEY) {
-  console.error('❌  Missing INSFORGE_URL / INSFORGE_SERVICE_KEY in .env');
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.error('❌  Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY in .env');
   process.exit(1);
 }
 
@@ -36,7 +36,7 @@ if (!GEMINI_KEYS_RAW) {
 const geminiKeys = GEMINI_KEYS_RAW.split(',').map(k => k.trim()).filter(Boolean);
 console.log(`🔑  Loaded ${geminiKeys.length} Gemini API keys for rotation.`);
 
-const db = createAdminClient({ baseUrl: INSFORGE_URL, apiKey: INSFORGE_SERVICE_KEY });
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 // ── 139 Subtopics configuration ──────────────────────────────────────────────
 const TOPICS: Record<string, string[]> = {
@@ -174,7 +174,7 @@ async function main() {
   
   // ── Phase 1: Wipe all old generic templates ────────────────────────────────
   console.log('\n🧹 Wiping old generic generic template questions from DB...');
-  const { error: delError } = await db.database.from('questions').delete().like('id', 'g-%');
+  const { error: delError } = await db.from('questions').delete().like('id', 'g-%');
   if (delError) {
     console.warn('  ⚠️  Could not remove old generic rows:', delError.message);
   } else {
@@ -188,7 +188,7 @@ async function main() {
     console.log(`\n⏳ Processing Topic: ${combo.language} / ${combo.topic}`);
     
     // Check how many questions already exist for this topic to allow resumability
-    const { data: existingMCQs } = await db.database.from('questions').select('id, difficulty').match({ language: combo.language, topic: combo.topic }).like('id', 'dyn-%');
+    const { data: existingMCQs } = await db.from('questions').select('id, difficulty').match({ language: combo.language, topic: combo.topic }).like('id', 'dyn-%');
     const existingCountByDiff: Record<string, number> = {
       'medium': existingMCQs?.filter(q => q.difficulty === 'medium').length || 0,
       'hard': existingMCQs?.filter(q => q.difficulty === 'hard').length || 0,
@@ -245,7 +245,7 @@ async function main() {
         let inserted = 0;
         for (let i = 0; i < comboRows.length; i += CHUNK) {
           const batch = comboRows.slice(i, i + CHUNK);
-          const { error } = await db.database.from('questions').insert(batch);
+          const { error } = await db.from('questions').insert(batch);
           if (error) {
             console.error(`\n  ❌  Chunk error:`, error.message);
           } else {

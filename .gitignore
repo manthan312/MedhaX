@@ -38,8 +38,7 @@ scratch/
 *.sln
 *.sw?
 
-# InsForge & Agent metadata
-.insforge
+# Agent metadata
 .agent
 .agents
 .augment

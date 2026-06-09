@@ -1,8 +1,8 @@
-import { insforgeAdmin } from '../config/insforge.js';
+import { supabaseAdmin } from '../config/supabase.js';
 
 async function cleanUpAndCount() {
   console.log("Cleaning up easy questions...");
-  const { error: err1 } = await insforgeAdmin.database
+  const { error: err1 } = await supabaseAdmin.database
     .from('questions')
     .delete()
     .eq('difficulty', 'easy');
@@ -10,7 +10,7 @@ async function cleanUpAndCount() {
   else console.log("Deleted easy questions.");
 
   console.log("Cleaning up dummy snippets...");
-  const { error: err2 } = await insforgeAdmin.database
+  const { error: err2 } = await supabaseAdmin.database
     .from('questions')
     .delete()
     .like('id', 'snip-%');
@@ -18,13 +18,13 @@ async function cleanUpAndCount() {
   else console.log("Deleted dummy snippet questions.");
 
   console.log("Fetching counts...");
-  const { data: mcqs, error: err3 } = await insforgeAdmin.database
+  const { data: mcqs, error: err3 } = await supabaseAdmin.database
     .from('questions')
     .select('id')
     .not('id', 'like', 'snip-%');
   if (err3) console.error("Error counting MCQs:", err3.message);
   
-  const { data: snippets, error: err4 } = await insforgeAdmin.database
+  const { data: snippets, error: err4 } = await supabaseAdmin.database
     .from('questions')
     .select('id')
     .like('id', 'snip-%');
