@@ -1,4 +1,4 @@
--- Users table (extends Insforge built-in auth)
+-- Users table (extends Supabase built-in auth)
 CREATE TABLE public.users (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   handle TEXT UNIQUE NOT NULL,
