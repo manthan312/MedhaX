@@ -1,9 +1,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } from './env.js';
+import { WebSocket as WsWebSocket } from 'ws';
 
-// Both clients are always initialized since env.ts provides fallback keys.
-// This prevents any "client not initialized" errors at runtime.
+// ─── WebSocket Polyfill for Node.js 20 ───────────────────────────────────────
+// Node.js 20 does not have native WebSocket support.
+// Supabase's realtime client requires it — we polyfill using the `ws` package.
+if (typeof globalThis.WebSocket === 'undefined') {
+  (globalThis as any).WebSocket = WsWebSocket;
+}
 
+// ─── Validate Keys ────────────────────────────────────────────────────────────
 if (!SUPABASE_URL) {
   throw new Error('SUPABASE_URL is required but not set.');
 }
