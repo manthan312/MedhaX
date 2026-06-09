@@ -17,8 +17,15 @@ for (const dir of searchDirs) {
   dotenv.config({ path: path.join(dir, '.env') });
 }
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'medhax_super_secret_jwt_2024';
+const cleanEnvVar = (val: string | undefined): string => {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (trimmed === 'undefined' || trimmed === 'null') return '';
+  return trimmed;
+};
+
+export const JWT_SECRET = cleanEnvVar(process.env.JWT_SECRET) || 'medhax_super_secret_jwt_2024';
 export const PORT = parseInt(process.env.PORT ?? '8080', 10);
-export const SUPABASE_URL = process.env.SUPABASE_URL || 'https://llerufiektzdfelaovzj.supabase.co';
-export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+export const SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL) || 'https://llerufiektzdfelaovzj.supabase.co';
+export const SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY);
+export const SUPABASE_SERVICE_ROLE_KEY = cleanEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY);
