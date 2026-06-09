@@ -63,7 +63,7 @@
       "Node.js",
       "Express.js",
       "Socket.io",
-      "PostgreSQL (via @insforge/sdk)"
+      "PostgreSQL (via @supabase/supabase-js)"
     ],
     "features": [
       {

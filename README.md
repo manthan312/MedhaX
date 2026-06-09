@@ -20,7 +20,7 @@ There's also a built-in anti-cheat system — switch tabs 3 times during a match
 MedhaX/
 ├── backend/          # Express + Socket.IO server
 │   ├── src/
-│   │   ├── config/   # env vars, InsForge client, Gemini key rotation
+│   │   ├── config/   # env vars, Supabase client, Gemini key rotation
 │   │   ├── data/     # question bank + seeding logic
 │   │   ├── game/     # match state machine, shape catalog & placement
 │   │   ├── routes/   # REST endpoints (auth, matches, friends)
@@ -53,7 +53,7 @@ MedhaX/
 | Layer | Stack |
 |---|---|
 | **Backend** | Node.js, Express 5, Socket.IO, TypeScript, JWT auth |
-| **Database** | PostgreSQL via [InsForge](https://insforge.dev) (BaaS) |
+| **Database** | PostgreSQL via [Supabase](https://supabase.com) (BaaS) |
 | **AI Hints** | Google Gemini 2.5 Flash (with rotating API key pool) |
 | **Web Client** | React 19, Vite, React Router, Zustand, Three.js |
 | **Mobile Client** | React Native 0.81, Expo SDK 54, NativeWind, React Navigation |
@@ -65,7 +65,7 @@ MedhaX/
 
 - Node.js v18+
 - npm
-- A PostgreSQL database (or an [InsForge](https://insforge.dev) project)
+- A PostgreSQL database (or a [Supabase](https://supabase.com) project)
 - Gemini API key(s) for the hint feature (optional but recommended)
 
 ### Backend
@@ -76,9 +76,9 @@ npm install
 
 # create a .env file with:
 #   JWT_SECRET=your_jwt_secret
-#   INSFORGE_URL=https://your-project.us-east.insforge.app
-#   INSFORGE_ANON_KEY=your_anon_key
-#   INSFORGE_SERVICE_KEY=your_service_key
+#   SUPABASE_URL=https://llerufiektzdfelaovzj.supabase.co
+#   SUPABASE_ANON_KEY=your_anon_key
+#   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 #   GEMINI_API_KEYS=key1,key2,key3   (comma-separated, rotated automatically)
 #   PORT=8080
 
@@ -111,7 +111,7 @@ Scan the QR code with Expo Go on your phone, or launch an emulator.
 
 The backend expects these Postgres tables (see `backend/migrations/` for the full SQL):
 
-- **users** — extends InsForge auth; stores handle, avatar, email hash
+- **users** — extends Supabase auth; stores handle, avatar, email hash
 - **user_stats** — wins, losses, ties, MMR (starts at 1200), streak tracking
 - **friendships** — friend requests with pending/accepted/blocked status
 - **matches** — match metadata (language, topics, grid size, winner, timestamps)
@@ -169,9 +169,9 @@ The real-time game flow is entirely driven through Socket.IO. Key events:
 | Variable | Description |
 |---|---|
 | `JWT_SECRET` | Secret for signing JWTs |
-| `INSFORGE_URL` | InsForge project API URL |
-| `INSFORGE_ANON_KEY` | InsForge anonymous/public key |
-| `INSFORGE_SERVICE_KEY` | InsForge service/admin key |
+| `SUPABASE_URL` | Supabase project API URL |
+| `SUPABASE_ANON_KEY` | Supabase anonymous/public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service/admin key |
 | `GEMINI_API_KEYS` | Comma-separated Gemini API keys |
 | `PORT` | Server port (default: 8080) |
 
