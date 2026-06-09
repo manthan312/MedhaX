@@ -14,6 +14,12 @@ const isValidUrl = (url: string) => {
 };
 
 if (SUPABASE_URL && isValidUrl(SUPABASE_URL)) {
+  if (!SUPABASE_ANON_KEY) {
+    console.warn('⚠️ SUPABASE_ANON_KEY (or ANON_KEY) is not set. Request handlers using anonymous database/auth access will fail.');
+  }
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY (or API_KEY) is not set. Database seeding and admin operations will fail.');
+  }
   try {
     sbAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY || 'placeholder-key');
     sbAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key');
