@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 
-const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-api-72177c54-e7fc-45e9-812e-ab418b203870.fly.dev') + '/api';
+const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
 export interface User {
   id: string;

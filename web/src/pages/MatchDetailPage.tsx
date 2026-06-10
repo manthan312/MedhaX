@@ -5,7 +5,7 @@ import axios from 'axios';
 import LanguageLogo from '../components/LanguageLogo';
 import Navbar from '../components/Navbar';
 
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
 interface MatchDetail {
   id: string;

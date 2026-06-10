@@ -5,7 +5,7 @@ import { CodeSnippetGame } from '../components/CodeSnippetGame';
 import axios from 'axios';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
 interface CodeSnippet {
   id: string;

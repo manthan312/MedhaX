@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { initSocket } from '../services/socket';
 import axios from 'axios';
 
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
 interface Match {
   id: string;

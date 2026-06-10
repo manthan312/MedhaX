@@ -44,7 +44,7 @@ export function initSocket(token: string): Socket {
     syncInterval = null;
   }
   activeToken = token;
-  socket = io(import.meta.env.VITE_API_URL ?? 'https://medhax-api-72177c54-e7fc-45e9-812e-ab418b203870.fly.dev', {
+  socket = io(import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com', {
     transports: ['websocket'],
     auth: { token },
     reconnection: true,

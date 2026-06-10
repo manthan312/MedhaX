@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from './authStore';
 
-const API = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000') + '/api';
+const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
 export interface Friend {
   id: string;
