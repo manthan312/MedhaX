@@ -216,7 +216,7 @@ export default function LobbyPage() {
   };
 
   const copyLink = () => {
-    const link = `${window.location.origin}/lobby?matchId=${matchId}`;
+    const link = `${window.location.origin}/#/lobby?matchId=${matchId}`;
     navigator.clipboard.writeText(link).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -246,7 +246,7 @@ export default function LobbyPage() {
               Invite Link — share this with your opponent
             </div>
             <div className="font-mono" style={{ fontSize: 13, color: 'var(--indigo-light)', wordBreak: 'break-all' }}>
-              {`${window.location.origin}/lobby?matchId=${matchId}`}
+              {`${window.location.origin}/#/lobby?matchId=${matchId}`}
             </div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={copyLink} style={{ flexShrink: 0 }}>

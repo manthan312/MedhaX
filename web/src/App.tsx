@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { initSocket, disconnectSocket } from './services/socket';
 import LandingPage from './pages/LandingPage';
@@ -16,7 +16,8 @@ import ParticleBackground from './components/ParticleBackground';
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  const redirectUrl = encodeURIComponent(window.location.pathname + window.location.search);
+  const location = useLocation();
+  const redirectUrl = encodeURIComponent(location.pathname + location.search);
   return isAuthenticated ? <>{children}</> : <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
 }
 
@@ -135,7 +136,7 @@ function AppBootstrap() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppBootstrap />
       <ParticleBackground />
       <Routes>
@@ -151,6 +152,6 @@ export default function App() {
         <Route path="/match/:matchId" element={<Protected><MatchDetailPage /></Protected>} />
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function LoginPage() {
@@ -8,13 +8,14 @@ export default function LoginPage() {
   const { login, isLoading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
     try {
       await login(email, password);
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect');
+      const redirect = searchParams.get('redirect');
       navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');
     } catch { /* error shown from store */ }
   };

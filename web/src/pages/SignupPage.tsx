@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
 export default function SignupPage() {
@@ -11,6 +11,8 @@ export default function SignupPage() {
   const { signup, isLoading, error, clearError } = useAuthStore();
   const navigate = useNavigate();
 
+  const [searchParams] = useSearchParams();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
@@ -19,8 +21,7 @@ export default function SignupPage() {
     if (password.length < 6) { setLocalError('Password must be at least 6 characters.'); return; }
     try {
       await signup(email, password, username);
-      const params = new URLSearchParams(window.location.search);
-      const redirect = params.get('redirect');
+      const redirect = searchParams.get('redirect');
       navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');
     } catch { /* error shown from store */ }
   };
