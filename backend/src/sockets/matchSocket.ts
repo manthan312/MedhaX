@@ -492,14 +492,30 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   });
 
   // ── player_ready ───────────────────────────────────────────────────────────
-  socket.on('lobby.ready', async (payload: { matchId: string; userId: string }) => {
-    const { matchId } = payload;
+  socket.on('lobby.ready', async (payload: { matchId: string; userId: string; language?: string; topics?: string[] }) => {
+    const { matchId, language, topics } = payload;
     const readyUserId = payload.userId || socketUserId;
 
     const state = getMatch(matchId);
     if (!state || state.status !== 'lobby') return;
 
     state.readyPlayers.add(readyUserId);
+
+    if (!state.config) {
+      state.config = {
+        language: 'JavaScript',
+        topics: [],
+        gridSize: 5,
+        questionCount: 10,
+      };
+    }
+
+    if (language) {
+      state.config.language = language;
+    }
+    if (topics && Array.isArray(topics)) {
+      state.config.topics = topics;
+    }
 
     emitLobbyUpdate(io, state);
 

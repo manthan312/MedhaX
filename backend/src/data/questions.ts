@@ -1154,12 +1154,24 @@ export const questions: Question[] = [
 
 import { supabaseAdmin } from '../config/supabase.js';
 
+export function normalizeLanguage(lang?: string): string | undefined {
+  if (!lang) return undefined;
+  const l = lang.toLowerCase();
+  if (l === 'cpp' || l === 'c++') return 'C++';
+  if (l === 'javascript' || l === 'js') return 'JavaScript';
+  if (l === 'python' || l === 'py') return 'Python';
+  if (l === 'java') return 'Java';
+  if (l === 'c') return 'C';
+  return lang;
+}
+
 /**
  * Filter questions locally by language and/or topic.
  */
 export function getQuestionsLocal(language?: string, topics?: string[]): Question[] {
+  const normLang = normalizeLanguage(language);
   return questions.filter(q => {
-    const langMatch = !language || q.language === language;
+    const langMatch = !normLang || q.language === normLang;
     const topicMatch = !topics || topics.length === 0 || topics.includes(q.topic);
     return langMatch && topicMatch;
   });
@@ -1169,7 +1181,8 @@ export function getQuestionsLocal(language?: string, topics?: string[]): Questio
  * Pick `count` random questions locally.
  */
 export function pickQuestionsLocal(language: string, topics: string[], count: number): Question[] {
-  const pool = getQuestionsLocal(language, topics);
+  const normLang = normalizeLanguage(language);
+  const pool = getQuestionsLocal(normLang, topics);
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   const selected = shuffled.slice(0, Math.min(count, shuffled.length));
   return selected.map(q => shuffleQuestionChoices(q));
@@ -1203,8 +1216,9 @@ export async function getQuestions(language?: string, topics?: string[], gameMod
       .from('questions')
       .select('id, language, topic, difficulty, prompt, choices, correct_index, explanation');
 
-    if (language) {
-      query = query.eq('language', language);
+    const normLang = normalizeLanguage(language);
+    if (normLang) {
+      query = query.eq('language', normLang);
     }
     if (topics && topics.length > 0) {
       query = query.in('topic', topics);

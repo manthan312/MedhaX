@@ -29,9 +29,62 @@ const LANGUAGES = [
   { id: 'cpp', label: 'C++', emoji: '⚙️' },
 ];
 
-const TOPICS = [
-  'Arrays', 'Strings', 'Trees', 'Graphs', 'DP',
-  'Sorting', 'Recursion', 'OOP', 'Pointers', 'Regex',
+const TOPICS_BY_LANGUAGE: Record<string, Array<{ id: string; label: string }>> = {
+  javascript: [
+    { id: 'JS-variables', label: 'Variables' },
+    { id: 'JS-data-types', label: 'Data Types' },
+    { id: 'JS-functions', label: 'Functions' },
+    { id: 'JS-scope', label: 'Scope' },
+    { id: 'JS-closures', label: 'Closures' },
+    { id: 'JS-promises', label: 'Promises' },
+    { id: 'JS-async-await', label: 'Async/Await' },
+    { id: 'JS-event-loop', label: 'Event Loop' },
+    { id: 'JS-DOM', label: 'DOM' },
+    { id: 'JS-storage', label: 'Storage' },
+  ],
+  python: [
+    { id: 'Python-basics', label: 'Basics' },
+    { id: 'Python-data-types', label: 'Data Types' },
+    { id: 'Python-functions', label: 'Functions' },
+    { id: 'Python-exceptions', label: 'Exceptions' },
+    { id: 'Python-lists', label: 'Lists' },
+    { id: 'Python-decorators', label: 'Decorators' },
+    { id: 'Python-generators', label: 'Generators' },
+    { id: 'Python-OOP-concepts', label: 'OOP Concepts' },
+    { id: 'Python-multithreading', label: 'Multithreading' },
+    { id: 'Python-file-handling', label: 'File Handling' },
+  ],
+  java: [
+    { id: 'Java-basics', label: 'Basics' },
+    { id: 'Java-classes-objects', label: 'Classes & Objects' },
+    { id: 'Java-OOP-concepts', label: 'OOP Concepts' },
+    { id: 'Java-inheritance', label: 'Inheritance' },
+    { id: 'Java-exceptions', label: 'Exceptions' },
+    { id: 'Java-multithreading', label: 'Multithreading' },
+    { id: 'Java-collections', label: 'Collections' },
+    { id: 'Java-streams-api', label: 'Streams API' },
+    { id: 'Java-garbage-collection', label: 'Garbage Collection' },
+  ],
+  cpp: [
+    { id: 'file-io', label: 'File I/O' },
+    { id: 'exception-handling', label: 'Exception Handling' },
+    { id: 'OOP', label: 'OOP' },
+    { id: 'functions-templates', label: 'Functions & Templates' },
+    { id: 'pointers-stl', label: 'Pointers & STL' },
+  ],
+};
+
+const DEFAULT_TOPICS = [
+  { id: 'Arrays', label: 'Arrays' },
+  { id: 'Strings', label: 'Strings' },
+  { id: 'Trees', label: 'Trees' },
+  { id: 'Graphs', label: 'Graphs' },
+  { id: 'DP', label: 'DP' },
+  { id: 'Sorting', label: 'Sorting' },
+  { id: 'Recursion', label: 'Recursion' },
+  { id: 'OOP', label: 'OOP' },
+  { id: 'Pointers', label: 'Pointers' },
+  { id: 'Regex', label: 'Regex' },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -124,6 +177,10 @@ const LobbyScreen: React.FC = () => {
   const [bothReady, setBothReady] = useState(false);
   const [myPing, setMyPing] = useState(42);
 
+  useEffect(() => {
+    setSelectedTopics([]);
+  }, [selectedLanguage]);
+
   const readyButtonScale = useRef(new Animated.Value(1)).current;
   const entranceAnim = useRef(new Animated.Value(0)).current;
 
@@ -158,6 +215,7 @@ const LobbyScreen: React.FC = () => {
 
   // Computed grid size
   const gridSize = selectedTopics.length <= 3 ? 5 : 6;
+  const activeTopics = TOPICS_BY_LANGUAGE[selectedLanguage] || DEFAULT_TOPICS;
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics((prev) =>
@@ -259,12 +317,12 @@ const LobbyScreen: React.FC = () => {
               <Text className="text-indigo-400 text-xs">{selectedTopics.length} selected</Text>
             </View>
             <View className="flex-row flex-wrap gap-2">
-              {TOPICS.map((topic) => {
-                const selected = selectedTopics.includes(topic);
+              {activeTopics.map((topic) => {
+                const selected = selectedTopics.includes(topic.id);
                 return (
                   <TouchableOpacity
-                    key={topic}
-                    onPress={() => toggleTopic(topic)}
+                    key={topic.id}
+                    onPress={() => toggleTopic(topic.id)}
                     style={{
                       backgroundColor: selected ? '#6366F1' : '#1E293B',
                       borderColor: selected ? '#6366F1' : '#334155',
@@ -274,7 +332,7 @@ const LobbyScreen: React.FC = () => {
                       paddingVertical: 7,
                     }}>
                     <Text style={{ color: selected ? '#fff' : '#64748B' }} className="text-sm font-bold">
-                      {topic}
+                      {topic.label}
                     </Text>
                   </TouchableOpacity>
                 );
