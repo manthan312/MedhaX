@@ -15,8 +15,14 @@ export default function LoginPage() {
     clearError();
     try {
       await login(email, password);
-      const redirect = searchParams.get('redirect');
-      navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');
+      const user = useAuthStore.getState().user;
+      const isAdmin = user?.email === 'admin31256@gmail.com' || (user as any)?.role === 'admin';
+      if (isAdmin) {
+        navigate('/admin-dashboard');
+      } else {
+        const redirect = searchParams.get('redirect');
+        navigate(redirect ? decodeURIComponent(redirect) : '/dashboard');
+      }
     } catch { /* error shown from store */ }
   };
 

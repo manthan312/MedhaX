@@ -1,11 +1,60 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useGameStore } from '../store/gameStore';
+import axios from 'axios';
 
 export default function ResultsPage() {
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const { matchResult, scores, reset, playerHandles, matchId } = useGameStore();
   const navigate = useNavigate();
+
+  const [isFirstGame, setIsFirstGame] = useState(false);
+  const [checkingFirstGame, setCheckingFirstGame] = useState(true);
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const checkHistory = async () => {
+      try {
+        const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+        const res = await axios.get(`${apiBase}/matches/history?userId=${user.id}`);
+        const endedMatches = (res.data.matches || []).filter((m: any) => m.status === 'ended');
+        // If they have 0 or 1 ended matches in history, this is their first completed game
+        setIsFirstGame(endedMatches.length <= 1);
+      } catch (err) {
+        console.error('Failed to check match history:', err);
+      } finally {
+        setCheckingFirstGame(false);
+      }
+    };
+    checkHistory();
+  }, [user?.id]);
+
+  const handleSubmitReview = async () => {
+    if (rating === 0 || !matchId) return;
+    setSubmittingReview(true);
+    try {
+      const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+      await axios.post(`${apiBase}/analytics/review`, {
+        matchId,
+        rating,
+        comment
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setReviewSuccess(true);
+    } catch (err: any) {
+      console.error('Failed to submit review:', err);
+      alert(err.response?.data?.message || 'Failed to submit review.');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   const isWinner = matchResult?.winnerId === user?.id;
   const isTie = matchResult?.winnerId === null;
@@ -75,6 +124,63 @@ export default function ResultsPage() {
             </div>
           </div>
         </div>
+
+        {/* Rating card for first game */}
+        {isFirstGame && !checkingFirstGame && (
+          <div className="card fade-in-up" style={{ marginBottom: 28, padding: 24, border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your First Game ⚔️</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
+              How did you enjoy your first multiplayer quiz match?
+            </p>
+
+            {reviewSuccess ? (
+              <div style={{ color: 'var(--green)', fontWeight: 600, fontSize: 14, padding: '8px 0' }}>
+                ✓ Thank you! Your review has been saved.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 8, fontSize: 28, cursor: 'pointer' }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      style={{
+                        color: star <= (hoverRating || rating) ? 'var(--yellow)' : 'var(--text-muted)',
+                        transition: 'transform 0.1s ease, color 0.1s ease',
+                        transform: star <= (hoverRating || rating) ? 'scale(1.2)' : 'scale(1)',
+                        textShadow: star <= (hoverRating || rating) ? '0 0 10px rgba(234,179,8,0.5)' : 'none'
+                      }}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+
+                {rating > 0 && (
+                  <div className="w-full fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <textarea
+                      className="input"
+                      rows={2}
+                      placeholder="Feedback comments... (Optional)"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      style={{ resize: 'none', background: 'rgba(255,255,255,0.02)', fontSize: 13 }}
+                    />
+                    <button
+                      onClick={handleSubmitReview}
+                      className="btn btn-primary w-full btn-sm"
+                      disabled={submittingReview}
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
           <button onClick={handleRematch} className="btn btn-primary btn-lg">

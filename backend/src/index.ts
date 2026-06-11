@@ -9,6 +9,7 @@ import { PORT, JWT_SECRET } from './config/env.js';
 import authRouter from './routes/auth.js';
 import matchesRouter from './routes/matches.js';
 import { usersRouter, friendsRouter } from './routes/friends.js';
+import analyticsRouter from './routes/analytics.js';
 import { registerMatchHandlers, clearMatchTimer, validateClientShapes, advanceToQuestion } from './sockets/matchSocket.js';
 import { onlineUsers } from './config/online.js';
 import { seedQuestions } from './data/seed.js';
@@ -48,6 +49,7 @@ app.use('/api/auth',    authRouter);
 app.use('/api/matches', matchesRouter);
 app.use('/api/users',   usersRouter);
 app.use('/api/friends', friendsRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // ─── Game Rooms Routes (Mobile Client support) ───────────────────────────────
 

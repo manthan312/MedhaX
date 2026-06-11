@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { initSocket, disconnectSocket } from './services/socket';
+import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -12,18 +14,42 @@ import PlacementPage from './pages/PlacementPage';
 import GamePage from './pages/GamePage';
 import ResultsPage from './pages/ResultsPage';
 import MatchDetailPage from './pages/MatchDetailPage';
+import AdminDashboardPage from './pages/AdminDashboardPage';
 import ParticleBackground from './components/ParticleBackground';
 
 function Protected({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const location = useLocation();
   const redirectUrl = encodeURIComponent(location.pathname + location.search);
-  return isAuthenticated ? <>{children}</> : <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
+  
+  if (!isAuthenticated) {
+    return <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
+  }
+  
+  const isAdmin = user?.email === 'admin31256@gmail.com' || (user as any)?.role === 'admin';
+  return isAdmin ? <Navigate to="/admin-dashboard" replace /> : <>{children}</>;
 }
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated) {
+    return <>{children}</>;
+  }
+  const isAdmin = user?.email === 'admin31256@gmail.com' || (user as any)?.role === 'admin';
+  return <Navigate to={isAdmin ? "/admin-dashboard" : "/dashboard"} replace />;
+}
+
+function AdminProtected({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+  const location = useLocation();
+  const redirectUrl = encodeURIComponent(location.pathname + location.search);
+
+  if (!isAuthenticated) {
+    return <Navigate to={`/login?redirect=${redirectUrl}`} replace />;
+  }
+
+  const isAdmin = user?.email === 'admin31256@gmail.com' || (user as any)?.role === 'admin';
+  return isAdmin ? <>{children}</> : <Navigate to="/dashboard" replace />;
 }
 
 /** 
@@ -40,6 +66,19 @@ function AppBootstrap() {
   } | null>(null);
   const navigate = useNavigate();
   const [validated, setValidated] = useState(false);
+
+  // Visitor tracking
+  useEffect(() => {
+    let sessionId = sessionStorage.getItem('medhax_session_id');
+    if (!sessionId) {
+      sessionId = uuidv4();
+      sessionStorage.setItem('medhax_session_id', sessionId);
+    }
+    const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+    axios.post(`${apiBase}/analytics/visit`, { sessionId }).catch(err => {
+      console.warn('Failed to log visit:', err);
+    });
+  }, []);
 
   // On mount: validate token once
   useEffect(() => {
@@ -144,6 +183,7 @@ export default function App() {
         <Route path="/login"     element={<PublicOnly><LoginPage /></PublicOnly>} />
         <Route path="/signup"    element={<PublicOnly><SignupPage /></PublicOnly>} />
         <Route path="/dashboard" element={<Protected><DashboardPage /></Protected>} />
+        <Route path="/admin-dashboard" element={<AdminProtected><AdminDashboardPage /></AdminProtected>} />
         <Route path="/friends"   element={<Protected><FriendsPage /></Protected>} />
         <Route path="/lobby"     element={<Protected><LobbyPage /></Protected>} />
         <Route path="/placement" element={<Protected><PlacementPage /></Protected>} />

