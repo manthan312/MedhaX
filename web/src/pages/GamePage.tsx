@@ -82,7 +82,7 @@ export default function GamePage() {
   const [toast, setToast] = useState<string | null>(null);
   const [scores2, setScores2] = useState<Record<string, number>>({});
 
-  const [cheatWarnings, setCheatWarnings] = useState(0);
+  const [cheatWarnings, setCheatWarnings] = useState(-1);
   const [showCheatModal, setShowCheatModal] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
@@ -96,18 +96,7 @@ export default function GamePage() {
         wasHidden = true;
       } else if (document.visibilityState === 'visible' && wasHidden) {
         wasHidden = false;
-        
-        setCheatWarnings(prev => {
-          const nextVal = prev + 1;
-          if (nextVal >= 3) {
-            emit('match.forfeit', { matchId, userId: user?.id, reason: 'cheating' });
-            alert("Cheating caught! You switched tabs 3 times and are disqualified.");
-            navigate('/dashboard');
-          } else {
-            setShowCheatModal(true);
-          }
-          return nextVal;
-        });
+        emit('match.cheat_warning', { matchId });
       }
     };
 
@@ -115,7 +104,7 @@ export default function GamePage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [matchId, user?.id]);
+  }, [matchId]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -137,6 +126,9 @@ export default function GamePage() {
       playerHandles?: Record<string, string>;
       isTieBreaker?: boolean;
       suddenDeath?: boolean;
+      hasAnswered?: boolean;
+      selectedOptionIndex?: number | null;
+      opponentAnswered?: boolean;
     }) => {
       setQuestion(data.question);
       setQuestionIdx(data.questionIdx);
@@ -146,7 +138,7 @@ export default function GamePage() {
       const dur = remSecs * 1000;
       setInitialDurationMs(dur);
       setLocalDeadline(Date.now() + dur);
-      setSelectedOpt(null);
+      setSelectedOpt(data.selectedOptionIndex !== undefined && data.selectedOptionIndex !== null ? data.selectedOptionIndex : null);
       setAnswerResult(null);
       setOpponentFaster(false);
       setDigTurn(null);
@@ -199,6 +191,16 @@ export default function GamePage() {
       }
     });
 
+    socket.on('match.cheat_warning_update', (data: { cheatWarnings: Record<string, number> }) => {
+      const myWarnings = data.cheatWarnings[user?.id || ''] || 0;
+      setCheatWarnings(prev => {
+        if (prev !== -1 && myWarnings > prev) {
+          setShowCheatModal(true);
+        }
+        return myWarnings;
+      });
+    });
+
     socket.on('match.end', (data: { winnerId: string | null; scores: Record<string, number>; reason: string }) => {
       setMatchResult({ ...data });
       setStatus('ended');
@@ -211,7 +213,8 @@ export default function GamePage() {
         'answer.result',
         'dig.turn',
         'dig.result',
-        'match.end'
+        'match.end',
+        'match.cheat_warning_update'
       ].forEach(e => socket.off(e));
     };
   }, [user?.id, token]);
@@ -496,7 +499,7 @@ export default function GamePage() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--red)', marginBottom: 12 }}>Tab Switch Warning</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.6, marginBottom: 24 }}>
-              Tab switching is strictly prohibited for fair play! This is warning <strong style={{ color: 'var(--text-primary)' }}>{cheatWarnings} of 3</strong>.
+              Tab switching is strictly prohibited for fair play! This is warning <strong style={{ color: 'var(--text-primary)' }}>{cheatWarnings === -1 ? 0 : cheatWarnings} of 3</strong>.
               If you switch tabs again, you will be disqualified instantly.
             </p>
             <button 

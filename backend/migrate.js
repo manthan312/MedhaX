@@ -19,7 +19,7 @@ async function migrate() {
     const files = fs.readdirSync(migrationsDir).sort();
 
     for (const file of files) {
-      if (file === '04_grants.sql' || file === '05_analytics.sql') {
+      if (file === '04_grants.sql' || file === '05_analytics.sql' || file === '06_achievements.sql') {
         console.log(`Running migration: ${file}`);
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         await client.query(sql);

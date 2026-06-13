@@ -14,6 +14,7 @@ import PlacementPage from './pages/PlacementPage';
 import GamePage from './pages/GamePage';
 import ResultsPage from './pages/ResultsPage';
 import MatchDetailPage from './pages/MatchDetailPage';
+import MatchRecapPage from './pages/MatchRecapPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import ParticleBackground from './components/ParticleBackground';
 
@@ -190,6 +191,7 @@ export default function App() {
         <Route path="/game"      element={<Protected><GamePage /></Protected>} />
         <Route path="/results"   element={<Protected><ResultsPage /></Protected>} />
         <Route path="/match/:matchId" element={<Protected><MatchDetailPage /></Protected>} />
+        <Route path="/match/:matchId/recap" element={<Protected><MatchRecapPage /></Protected>} />
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

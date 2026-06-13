@@ -112,6 +112,47 @@ usersRouter.get('/online', requireAuth, async (req: AuthenticatedRequest, res: R
   }
 });
 
+// GET /users/achievements — fetch logged-in user achievements and active title
+usersRouter.get('/achievements', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const myUserId = req.userId!;
+  try {
+    const { data: achievements } = await supabaseAdmin.database
+      .from('user_achievements')
+      .select('achievement_type, unlocked_at')
+      .eq('user_id', myUserId);
+
+    const { data: user } = await supabaseAdmin.database
+      .from('users')
+      .select('active_title')
+      .eq('id', myUserId)
+      .single();
+
+    res.json({
+      achievements: achievements ?? [],
+      activeTitle: user?.active_title ?? null
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PUT /users/title — change active equipped title for user
+usersRouter.put('/title', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const myUserId = req.userId!;
+  const { title } = req.body as { title: string | null };
+  try {
+    const { error } = await supabaseAdmin.database
+      .from('users')
+      .update({ active_title: title })
+      .eq('id', myUserId);
+
+    if (error) throw error;
+    res.json({ success: true, activeTitle: title });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 export { usersRouter };
 
 // ─── Friends Router ───────────────────────────────────────────────────────────

@@ -255,4 +255,17 @@ router.get('/leaderboards', async (req: Request, res: Response) => {
   }
 });
 
+// In-memory registry of completed match recaps for recap screen
+export const completedRecaps = new Map<string, any>();
+
+router.get('/:id/recap', (req: Request, res: Response) => {
+  const id = req.params['id'] as string;
+  const recap = completedRecaps.get(id);
+  if (!recap) {
+    res.status(404).json({ message: 'Recap not found for this match' });
+    return;
+  }
+  res.json(recap);
+});
+
 export default router;

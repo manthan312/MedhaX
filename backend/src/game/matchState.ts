@@ -39,6 +39,8 @@ export interface MatchState {
 
   shapeTemplates?: Record<string, Shape[]>;          // userId -> custom generated shapes
   challengedUserIds: Set<string>;                    // targetUserIds who have been challenged
+  answersHistory?: Record<string, AnswerRecord>[];
+  cheatWarnings: Record<string, number>;
 }
 
 // ─── In-memory match store ────────────────────────────────────────────────────
@@ -88,6 +90,7 @@ export function createMatch(
 
     shapeTemplates: {},
     challengedUserIds: new Set(),
+    cheatWarnings: Object.fromEntries(players.map(p => [p, 0])),
   };
   matches.set(matchId, state);
   return state;
@@ -169,9 +172,9 @@ export function resolveRound(state: MatchState): RoundResult {
 
   // Find players who answered correctly
   const correctEntries = state.players
-    .filter(p => state.answersThisRound[p]?.optionIndex === correctIndex)
+    .filter(p => state.answersThisRound[p] && correctIndex !== undefined && state.answersThisRound[p].optionIndex === correctIndex)
     .map(p => ({ userId: p, record: state.answersThisRound[p]! }))
-    .sort((a, b) => a.record.receivedAt - b.record.receivedAt); // fastest first
+    .sort((a, b) => (a.record?.receivedAt ?? 0) - (b.record?.receivedAt ?? 0)); // fastest first
 
   const winnerId = correctEntries.length > 0 ? correctEntries[0]!.userId : null;
 

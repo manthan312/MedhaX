@@ -184,10 +184,15 @@ export default function ResultsPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={handleRematch} className="btn btn-primary btn-lg">
             🔄 Rematch
           </button>
+          {matchId && (
+            <button onClick={() => navigate(`/match/${matchId}/recap`)} className="btn btn-ghost btn-lg" style={{ borderColor: 'rgba(99,102,241,0.5)', color: 'var(--indigo-light)' }}>
+              📊 View Recap
+            </button>
+          )}
           <button onClick={handleHome} className="btn btn-ghost btn-lg">
             🏠 Dashboard
           </button>

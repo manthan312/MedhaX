@@ -10,6 +10,7 @@ export interface User {
   email_hash?: string;
   avatar_url?: string;
   created_at?: string;
+  active_title?: string | null;
 }
 
 interface AuthState {
@@ -24,6 +25,7 @@ interface AuthState {
   clearError: () => void;
   validateToken: () => Promise<boolean>;
   updateHandle: (newHandle: string) => Promise<void>;
+  updateUser: (updatedFields: Partial<User>) => void;
 }
 
 function loadFromStorage() {
@@ -136,4 +138,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  updateUser: (updatedFields: Partial<User>) => {
+    const { user } = get();
+    if (!user) return;
+    const updatedUser = { ...user, ...updatedFields };
+    localStorage.setItem('medhax_user', JSON.stringify(updatedUser));
+    set({ user: updatedUser });
+  },
 }));
