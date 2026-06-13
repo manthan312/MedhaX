@@ -9,7 +9,7 @@ export default function ResultsPage() {
   const { matchResult, scores, reset, playerHandles, matchId } = useGameStore();
   const navigate = useNavigate();
 
-  const [isFirstGame, setIsFirstGame] = useState(false);
+  const [shouldShowReview, setShouldShowReview] = useState(false);
   const [checkingFirstGame, setCheckingFirstGame] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rating, setRating] = useState(0);
@@ -24,8 +24,10 @@ export default function ResultsPage() {
         const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
         const res = await axios.get(`${apiBase}/matches/history?userId=${user.id}`);
         const endedMatches = (res.data.matches || []).filter((m: any) => m.status === 'ended');
-        // If they have 0 or 1 ended matches in history, this is their first completed game
-        setIsFirstGame(endedMatches.length <= 1);
+        const count = endedMatches.length;
+        // Ask for review on the 1st match, and then every 10 matches after (11th, 21st, 31st, etc.)
+        const askReview = count === 1 || (count > 1 && (count - 1) % 10 === 0);
+        setShouldShowReview(askReview);
       } catch (err) {
         console.error('Failed to check match history:', err);
       } finally {
@@ -126,7 +128,7 @@ export default function ResultsPage() {
         </div>
 
         {/* Rating card */}
-        {!checkingFirstGame && (
+        {shouldShowReview && !checkingFirstGame && (
           <div className="card fade-in-up" style={{ marginBottom: 28, padding: 24, border: '1px solid rgba(234, 179, 8, 0.2)' }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your Game Experience ⚔️</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
