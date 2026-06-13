@@ -125,12 +125,12 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Rating card for first game */}
-        {isFirstGame && !checkingFirstGame && (
+        {/* Rating card */}
+        {!checkingFirstGame && (
           <div className="card fade-in-up" style={{ marginBottom: 28, padding: 24, border: '1px solid rgba(234, 179, 8, 0.2)' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your First Game ⚔️</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your Game Experience ⚔️</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
-              How did you enjoy your first multiplayer quiz match?
+              How did you enjoy this multiplayer quiz match?
             </p>
 
             {reviewSuccess ? (
