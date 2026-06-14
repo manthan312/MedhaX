@@ -157,13 +157,6 @@ export default function PlacementPage() {
     if (!token || !user) return;
     const socket = initSocket(token);
 
-    // Join room / recover config if refreshed
-    socket.emit('lobby.join', {
-      matchId,
-      userId: user.id,
-      config: config || { gridSize }
-    });
-
     const handlePlacementStart = (data: { deadline_ts: number; remainingSeconds?: number; gridSize: number; players: any[]; playerHandles?: Record<string, string>; config?: any; shapesTemplates?: ShapeTemplate[] }) => {
       const useGridSize = data.gridSize || gridSize;
       if (data.config) {
@@ -192,6 +185,13 @@ export default function PlacementPage() {
     socket.on('question.start', () => {
       setStatus('question');
       navigate(`/game?matchId=${matchId}`);
+    });
+
+    // Join room / recover config if refreshed
+    socket.emit('lobby.join', {
+      matchId,
+      userId: user.id,
+      config: config || { gridSize }
     });
 
     return () => {

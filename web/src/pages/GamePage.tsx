@@ -110,13 +110,6 @@ export default function GamePage() {
     if (!token || !user) return;
     const socket = initSocket(token);
 
-    // Join room / recover state if refreshed
-    socket.emit('lobby.join', {
-      matchId,
-      userId: user.id,
-      config: config || { gridSize: 5 }
-    });
-
     socket.on('question.start', (data: {
       question: Question;
       questionIdx: number;
@@ -205,6 +198,13 @@ export default function GamePage() {
       setMatchResult({ ...data });
       setStatus('ended');
       setTimeout(() => navigate(`/results?matchId=${matchId}`), 1000);
+    });
+
+    // Join room / recover state if refreshed
+    socket.emit('lobby.join', {
+      matchId,
+      userId: user.id,
+      config: config || { gridSize: 5 }
     });
 
     return () => {
