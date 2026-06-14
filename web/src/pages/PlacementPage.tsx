@@ -186,6 +186,14 @@ export default function PlacementPage() {
       setStatus('question');
       navigate(`/game?matchId=${matchId}`);
     });
+    socket.on('placement_invalid', (data: { message: string }) => {
+      alert(`Server rejected placement: ${data.message}`);
+      setLocked(false);
+    });
+    socket.on('error', (data: { message: string }) => {
+      alert(`Match error: ${data.message}`);
+      setLocked(false);
+    });
 
     // Join room / recover config if refreshed
     socket.emit('lobby.join', {
@@ -198,6 +206,8 @@ export default function PlacementPage() {
       socket.off('placement.start', handlePlacementStart);
       socket.off('placement.locked');
       socket.off('question.start');
+      socket.off('placement_invalid');
+      socket.off('error');
     };
   }, [matchId, user?.id, token, config, gridSize]);
 

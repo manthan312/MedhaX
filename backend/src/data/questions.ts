@@ -1165,14 +1165,37 @@ export function normalizeLanguage(lang?: string): string | undefined {
   return lang;
 }
 
+export function normalizeTopic(topic: string): string {
+  const clean = topic.replace(/^(Python|JS|Java|CPP|C|DBMS|DSA|OS)-/i, '').toLowerCase();
+  
+  if (['pointer', 'reference', 'memory', 'dynamic'].some(x => clean.includes(x))) {
+    return 'pointers';
+  }
+  if (['closure', 'scope', 'variable', 'hoisting', 'event', 'callback', 'promise', 'async', 'basics', 'data-types', 'intro'].some(x => clean.includes(x))) {
+    return 'closures';
+  }
+  if (['list', 'tuple', 'set', 'array', 'collection', 'vector', 'search', 'sort', 'tree', 'graph', 'hash', 'heap', 'queue', 'stack', 'keys', 'join', 'index'].some(x => clean.includes(x))) {
+    return 'arrays';
+  }
+  if (['string', 'regex', 'text', 'char'].some(x => clean.includes(x))) {
+    return 'strings';
+  }
+  if (['oop', 'class', 'object', 'inherit', 'poly', 'encap', 'abstract', 'model', 'relation', 'normalization', 'transaction', 'acid', 'lock', 'deadlock'].some(x => clean.includes(x))) {
+    return 'OOP';
+  }
+  
+  return 'arrays';
+}
+
 /**
  * Filter questions locally by language and/or topic.
  */
 export function getQuestionsLocal(language?: string, topics?: string[]): Question[] {
   const normLang = normalizeLanguage(language);
+  const normTopics = topics ? topics.map(t => normalizeTopic(t)) : [];
   return questions.filter(q => {
     const langMatch = !normLang || q.language === normLang;
-    const topicMatch = !topics || topics.length === 0 || topics.includes(q.topic);
+    const topicMatch = !topics || topics.length === 0 || normTopics.includes(normalizeTopic(q.topic));
     return langMatch && topicMatch;
   });
 }
@@ -1211,12 +1234,14 @@ function shuffleQuestionChoices(q: Question): Question {
  * Fetch and filter questions from the database.
  */
 export async function getQuestions(language?: string, topics?: string[], gameMode?: string): Promise<Question[]> {
+  const normLang = normalizeLanguage(language);
+
+  // 1. Try querying standard schema
   try {
     let query = supabaseAdmin.database
       .from('questions')
       .select('id, language, topic, difficulty, prompt, choices, correct_index, explanation');
 
-    const normLang = normalizeLanguage(language);
     if (normLang) {
       query = query.eq('language', normLang);
     }
@@ -1231,15 +1256,66 @@ export async function getQuestions(language?: string, topics?: string[], gameMod
     }
 
     const { data, error } = await query;
-    if (error) {
-      console.error('[getQuestions] DB Error:', error.message);
-      return getQuestionsLocal(language, topics);
+    if (!error && data && data.length > 0) {
+      return data as unknown as Question[];
     }
-    return (data ?? []) as unknown as Question[];
-  } catch (err) {
-    console.error('[getQuestions] Catch error:', err);
-    return getQuestionsLocal(language, topics);
+    if (error) {
+      console.warn('[getQuestions] Standard schema query failed:', error.message);
+    }
+  } catch (err: any) {
+    console.warn('[getQuestions] Standard schema query exception:', err?.message || err);
   }
+
+  // 2. Try querying legacy schema
+  try {
+    let query = supabaseAdmin.database
+      .from('questions')
+      .select('id, category, topic, difficulty, question_text, option_a, option_b, option_c, option_d, correct_answer');
+
+    if (normLang) {
+      query = query.eq('category', normLang.toLowerCase());
+    }
+    
+    if (topics && topics.length > 0) {
+      const normTopics = topics.map(t => normalizeTopic(t));
+      const topicFilters = [...topics, ...normTopics];
+      query = query.in('topic', topicFilters);
+    }
+
+    const { data, error } = await query;
+    if (!error && data && data.length > 0) {
+      return data.map((q: any) => {
+        const choices: [string, string, string, string] = [
+          q.option_a || '',
+          q.option_b || '',
+          q.option_c || '',
+          q.option_d || ''
+        ];
+        const correctMap: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+        const correct_index = correctMap[String(q.correct_answer).toUpperCase()] ?? 0;
+
+        return {
+          id: String(q.id),
+          language: normLang || q.category || 'JavaScript',
+          topic: q.topic || 'arrays',
+          difficulty: q.difficulty || 'medium',
+          prompt: q.question_text || '',
+          choices,
+          correct_index: correct_index as 0 | 1 | 2 | 3,
+          explanation: q.explanation || 'No explanation provided.'
+        };
+      });
+    }
+    if (error) {
+      console.warn('[getQuestions] Legacy schema query failed:', error.message);
+    }
+  } catch (err: any) {
+    console.warn('[getQuestions] Legacy schema query exception:', err?.message || err);
+  }
+
+  // 3. Fallback to local questions
+  console.log('[getQuestions] Falling back to local question bank.');
+  return getQuestionsLocal(language, topics);
 }
 
 /**
