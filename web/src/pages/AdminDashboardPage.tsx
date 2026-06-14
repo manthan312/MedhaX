@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+        const apiBase = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
         const res = await axios.get(`${apiBase}/analytics/dashboard`, {
           headers: { Authorization: `Bearer ${token}` }
         });

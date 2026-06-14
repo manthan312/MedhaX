@@ -14,7 +14,6 @@ import PlacementPage from './pages/PlacementPage';
 import GamePage from './pages/GamePage';
 import ResultsPage from './pages/ResultsPage';
 import MatchDetailPage from './pages/MatchDetailPage';
-import MatchRecapPage from './pages/MatchRecapPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import ParticleBackground from './components/ParticleBackground';
 
@@ -75,7 +74,7 @@ function AppBootstrap() {
       sessionId = uuidv4();
       sessionStorage.setItem('medhax_session_id', sessionId);
     }
-    const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+    const apiBase = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
     axios.post(`${apiBase}/analytics/visit`, { sessionId }).catch(err => {
       console.warn('Failed to log visit:', err);
     });
@@ -191,7 +190,6 @@ export default function App() {
         <Route path="/game"      element={<Protected><GamePage /></Protected>} />
         <Route path="/results"   element={<Protected><ResultsPage /></Protected>} />
         <Route path="/match/:matchId" element={<Protected><MatchDetailPage /></Protected>} />
-        <Route path="/match/:matchId/recap" element={<Protected><MatchRecapPage /></Protected>} />
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

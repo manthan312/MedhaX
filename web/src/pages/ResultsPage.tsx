@@ -9,7 +9,7 @@ export default function ResultsPage() {
   const { matchResult, scores, reset, playerHandles, matchId } = useGameStore();
   const navigate = useNavigate();
 
-  const [shouldShowReview, setShouldShowReview] = useState(false);
+  const [isFirstGame, setIsFirstGame] = useState(false);
   const [checkingFirstGame, setCheckingFirstGame] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [rating, setRating] = useState(0);
@@ -21,13 +21,13 @@ export default function ResultsPage() {
     if (!user?.id) return;
     const checkHistory = async () => {
       try {
-        const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+        const apiBase = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
         const res = await axios.get(`${apiBase}/matches/history?userId=${user.id}`);
-        const endedMatches = (res.data.matches || []).filter((m: any) => m.status === 'ended');
-        const count = endedMatches.length;
-        // Ask for review on the 1st match, and then every 10 matches after (11th, 21st, 31st, etc.)
-        const askReview = count === 1 || (count > 1 && (count - 1) % 10 === 0);
-        setShouldShowReview(askReview);
+        const totalCount = res.data.totalCount ?? 0;
+        
+        // Ask for review after first game only, and after that every 5th game (1, 6, 11, 16, 21, ...)
+        const shouldPrompt = totalCount === 1 || (totalCount > 1 && (totalCount - 1) % 5 === 0);
+        setIsFirstGame(shouldPrompt);
       } catch (err) {
         console.error('Failed to check match history:', err);
       } finally {
@@ -41,7 +41,7 @@ export default function ResultsPage() {
     if (rating === 0 || !matchId) return;
     setSubmittingReview(true);
     try {
-      const apiBase = (import.meta.env.VITE_API_URL ?? 'http://localhost:8080') + '/api';
+      const apiBase = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
       await axios.post(`${apiBase}/analytics/review`, {
         matchId,
         rating,
@@ -127,12 +127,12 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        {/* Rating card */}
-        {shouldShowReview && !checkingFirstGame && (
+        {/* Rating card for first game */}
+        {isFirstGame && !checkingFirstGame && (
           <div className="card fade-in-up" style={{ marginBottom: 28, padding: 24, border: '1px solid rgba(234, 179, 8, 0.2)' }}>
-            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your Game Experience ⚔️</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>⚔️ Rate Your Experience ⚔️</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
-              How did you enjoy this multiplayer quiz match?
+              How did you enjoy your multiplayer quiz match?
             </p>
 
             {reviewSuccess ? (
@@ -184,15 +184,10 @@ export default function ResultsPage() {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center' }}>
           <button onClick={handleRematch} className="btn btn-primary btn-lg">
             🔄 Rematch
           </button>
-          {matchId && (
-            <button onClick={() => navigate(`/match/${matchId}/recap`)} className="btn btn-ghost btn-lg" style={{ borderColor: 'rgba(99,102,241,0.5)', color: 'var(--indigo-light)' }}>
-              📊 View Recap
-            </button>
-          )}
           <button onClick={handleHome} className="btn btn-ghost btn-lg">
             🏠 Dashboard
           </button>

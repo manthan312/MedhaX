@@ -45,7 +45,7 @@ router.get('/history', async (req: Request, res: Response) => {
 
     const matchIds = (playerMatches ?? []).map(pm => pm.match_id);
     if (matchIds.length === 0) {
-      res.json({ matches: [], playerHandles: {} });
+      res.json({ matches: [], playerHandles: {}, totalCount: 0 });
       return;
     }
 
@@ -128,7 +128,7 @@ router.get('/history', async (req: Request, res: Response) => {
       };
     });
 
-    res.json({ matches: mappedMatches, playerHandles: handlesMap });
+    res.json({ matches: mappedMatches, playerHandles: handlesMap, totalCount: playerMatches.length });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
@@ -253,19 +253,6 @@ router.get('/leaderboards', async (req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
-});
-
-// In-memory registry of completed match recaps for recap screen
-export const completedRecaps = new Map<string, any>();
-
-router.get('/:id/recap', (req: Request, res: Response) => {
-  const id = req.params['id'] as string;
-  const recap = completedRecaps.get(id);
-  if (!recap) {
-    res.status(404).json({ message: 'Recap not found for this match' });
-    return;
-  }
-  res.json(recap);
 });
 
 export default router;
