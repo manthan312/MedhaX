@@ -157,7 +157,14 @@ export default function PlacementPage() {
     if (!token || !user) return;
     const socket = initSocket(token);
 
-    const handlePlacementStart = (data: { deadline_ts: number; remainingSeconds?: number; gridSize: number; players: any[]; playerHandles?: Record<string, string>; config?: any; shapesTemplates?: ShapeTemplate[] }) => {
+    // Join room / recover config if refreshed
+    socket.emit('lobby.join', {
+      matchId,
+      userId: user.id,
+      config: config || { gridSize }
+    });
+
+    const handlePlacementStart = (data: { deadline_ts: number; remainingSeconds?: number; gridSize: number; players: any[]; playerHandles?: Record<string, string>; config?: any; shapesTemplates?: ShapeTemplate[]; placementLocked?: Record<string, boolean> }) => {
       const useGridSize = data.gridSize || gridSize;
       if (data.config) {
         setConfig(data.config);
@@ -172,9 +179,17 @@ export default function PlacementPage() {
       }
       if (data.players) {
         const pIds = data.players.map((p: any) => typeof p === 'string' ? p : p.id);
-        const oppId = pIds.find((id: string) => id !== user.id) || '';
+        const oppId = pIds.find((id: string) => id !== user?.id) || '';
         setPlayers(pIds, oppId);
         initGrids(useGridSize);
+        if (data.placementLocked) {
+          if (user?.id && data.placementLocked[user.id]) {
+            setLocked(true);
+          }
+          if (oppId && data.placementLocked[oppId]) {
+            setOpponentLocked(true);
+          }
+        }
       }
     };
 
@@ -186,28 +201,11 @@ export default function PlacementPage() {
       setStatus('question');
       navigate(`/game?matchId=${matchId}`);
     });
-    socket.on('placement_invalid', (data: { message: string }) => {
-      alert(`Server rejected placement: ${data.message}`);
-      setLocked(false);
-    });
-    socket.on('error', (data: { message: string }) => {
-      alert(`Match error: ${data.message}`);
-      setLocked(false);
-    });
-
-    // Join room / recover config if refreshed
-    socket.emit('lobby.join', {
-      matchId,
-      userId: user.id,
-      config: config || { gridSize }
-    });
 
     return () => {
       socket.off('placement.start', handlePlacementStart);
       socket.off('placement.locked');
       socket.off('question.start');
-      socket.off('placement_invalid');
-      socket.off('error');
     };
   }, [matchId, user?.id, token, config, gridSize]);
 
@@ -235,6 +233,17 @@ export default function PlacementPage() {
     }, 50);
     return () => clearInterval(iv);
   }, [localDeadline, locked, placed, matchId, user?.id]);
+
+  // Fallback timer when both lock or timer expires to prevent getting stuck
+  useEffect(() => {
+    if ((locked && opponentLocked) || timeLeft <= 0) {
+      const timeout = setTimeout(() => {
+        alert("Failed to play the match: game server response timeout.");
+        navigate('/dashboard');
+      }, 10000); // 10s fallback timer
+      return () => clearTimeout(timeout);
+    }
+  }, [locked, opponentLocked, timeLeft, navigate]);
 
   const previewCells = hoverCell
     ? currentCells.map(c => ({ r: hoverCell.r + c.r, c: hoverCell.c + c.c }))

@@ -132,7 +132,15 @@ export default function LobbyPage() {
       }
     };
 
+    if (socket.connected) {
+      setConnected(true);
+      doJoin();
+    }
 
+    socket.on('connect', () => {
+      setConnected(true);
+      doJoin();
+    });
 
     socket.on('disconnect', () => setConnected(false));
 
@@ -182,16 +190,6 @@ export default function LobbyPage() {
           toastType: 'error'
         }
       });
-    });
-
-    if (socket.connected) {
-      setConnected(true);
-      doJoin();
-    }
-
-    socket.on('connect', () => {
-      setConnected(true);
-      doJoin();
     });
 
     return () => {

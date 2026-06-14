@@ -75,7 +75,7 @@ export default function SignupPage() {
           </form>
 
           <div className="divider-text" style={{ margin: '24px 0' }}>Already have an account?</div>
-          <Link to={searchParams.get('redirect') ? `/login?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/login'} className="btn btn-ghost w-full" style={{ textDecoration: 'none', textAlign: 'center' }}>
+          <Link to="/login" className="btn btn-ghost w-full" style={{ textDecoration: 'none', textAlign: 'center' }}>
             Sign In
           </Link>
         </div>

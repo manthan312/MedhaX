@@ -24,7 +24,6 @@ import { pickQuestions } from '../data/questions.js';
 import { getGeminiKey } from '../config/gemini.js';
 import { supabaseAdmin } from '../config/supabase.js';
 import { onlineUsers } from '../config/online.js';
-import { completedRecaps } from '../routes/matches.js';
 
 // ─── Types for socket payloads ────────────────────────────────────────────────
 
@@ -221,7 +220,6 @@ export function advanceToQuestion(io: Server, matchId: string): void {
       reason: 'questions_exhausted',
     });
     persistMatchResult(state, endResult.winnerId);
-    saveMatchRecapAndEvaluateAchievements(state, endResult.winnerId);
     deleteMatch(matchId);
     return;
   }
@@ -255,11 +253,6 @@ export function advanceToQuestion(io: Server, matchId: string): void {
 function resolveAndBroadcastRound(io: Server, matchId: string, state: MatchState): void {
   clearMatchTimer(state);
 
-  if (!(state as any).answersHistory) {
-    (state as any).answersHistory = [];
-  }
-  (state as any).answersHistory.push({ ...state.answersThisRound });
-
   const result = resolveRound(state);
 
   emitToMatch(io, state, 'answer.result', {
@@ -279,52 +272,6 @@ function resolveAndBroadcastRound(io: Server, matchId: string, state: MatchState
   } else {
     // No winner this round — brief pause then next question
     setTimeout(() => advanceToQuestion(io, matchId), 2000);
-  }
-}
-
-async function saveMatchRecapAndEvaluateAchievements(state: MatchState, winnerId: string | null): Promise<void> {
-  try {
-    const roundsRecap = [];
-    for (let i = 0; i < state.currentQuestionIdx; i++) {
-      const q = state.questions[i];
-      if (q) {
-        roundsRecap.push({
-          roundIndex: i,
-          question: q,
-          answers: (state as any).answersHistory?.[i] ?? {}
-        });
-      }
-    }
-
-    completedRecaps.set(state.matchId, {
-      matchId: state.matchId,
-      config: state.config,
-      players: state.players,
-      scores: state.scores,
-      winnerId,
-      rounds: roundsRecap
-    });
-
-    for (const userId of state.players) {
-      const isWinner = userId === winnerId;
-      const score = state.scores[userId] ?? 0;
-
-      // Check first_win
-      if (isWinner) {
-        await supabaseAdmin.database.from('user_achievements').insert([
-          { user_id: userId, achievement_type: 'first_win' }
-        ]).select().maybeSingle();
-      }
-
-      // Check perfectionist (score >= 40)
-      if (score >= 40) {
-        await supabaseAdmin.database.from('user_achievements').insert([
-          { user_id: userId, achievement_type: 'perfectionist' }
-        ]).select().maybeSingle();
-      }
-    }
-  } catch (err) {
-    console.error('[saveMatchRecapAndEvaluateAchievements] error:', err);
   }
 }
 
@@ -358,7 +305,6 @@ function handleDisconnect(
       });
 
       persistMatchResult(s, opponent);
-      saveMatchRecapAndEvaluateAchievements(s, opponent);
       deleteMatch(matchId);
     }
   }, RECONNECT_GRACE_MS);
@@ -451,7 +397,6 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     socket.join(matchId);
 
     emitLobbyUpdate(io, state);
-    socket.emit('match.cheat_warning_update', { cheatWarnings: state.cheatWarnings });
 
     if (state.status === 'placement') {
       const remainingSeconds = state.deadline ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 90;
@@ -470,16 +415,13 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         playerHandles: handles,
         config: state.config,
         shapesTemplates: state.shapeTemplates[joiningUserId],
+        placementLocked: state.placementLocked,
       });
     } else if (state.status === 'question') {
       const q = state.questions[state.currentQuestionIdx];
       if (q) {
         const remainingSeconds = state.deadline ? Math.max(0, Math.ceil((state.deadline - Date.now()) / 1000)) : 45;
         const handles = await getPlayerHandles(state);
-        const hasAnswered = !!state.answersThisRound[joiningUserId];
-        const selectedOptionIndex = hasAnswered ? state.answersThisRound[joiningUserId]!.optionIndex : null;
-        const opponentAnswered = state.players.some(p => p !== joiningUserId && !!state.answersThisRound[p]);
-
         socket.emit('question.start', {
           questionIdx: state.currentQuestionIdx,
           total: state.questions.length,
@@ -494,9 +436,6 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
           deadline_ts: state.deadline || (Date.now() + 45_000),
           remainingSeconds,
           playerHandles: handles,
-          hasAnswered,
-          selectedOptionIndex,
-          opponentAnswered,
         });
       }
     } else if (state.status === 'dig') {
@@ -556,7 +495,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   // ── player_ready ───────────────────────────────────────────────────────────
   socket.on('lobby.ready', async (payload: { matchId: string; userId: string; language?: string; topics?: string[] }) => {
     const { matchId, language, topics } = payload;
-    const readyUserId = socketUserId;
+    const readyUserId = payload.userId || socketUserId;
 
     const state = getMatch(matchId);
     if (!state || state.status !== 'lobby') return;
@@ -616,6 +555,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
             playerHandles: handles,
             config: state.config,
             shapesTemplates: state.shapeTemplates[pid],
+            placementLocked: state.placementLocked,
           });
         }
       }
@@ -646,7 +586,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   // ── placement_lock ─────────────────────────────────────────────────────────
   socket.on('placement.lock', (payload: PlacementLockPayload) => {
     const { matchId, shapes } = payload;
-    const lockingUserId = socketUserId;
+    const lockingUserId = payload.userId || socketUserId;
 
     const state = getMatch(matchId);
     if (!state || state.status !== 'placement') {
@@ -690,7 +630,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   // ── answer_submit ──────────────────────────────────────────────────────────
   socket.on('answer.submit', (payload: AnswerSubmitPayload) => {
     const { matchId, optionIndex } = payload;
-    const answerUserId = socketUserId;
+    const answerUserId = payload.userId || socketUserId;
 
     const state = getMatch(matchId);
     if (!state || state.status !== 'question') {
@@ -726,7 +666,7 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
   // ── dig_submit ─────────────────────────────────────────────────────────────
   socket.on('dig.submit', (payload: DigSubmitPayload) => {
     const { matchId, targetUserId, r, c } = payload;
-    const diggerUserId = socketUserId;
+    const diggerUserId = payload.userId || socketUserId;
 
     const state = getMatch(matchId);
     if (!state || state.status !== 'dig') {
@@ -770,7 +710,6 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         reason: 'all_ships_sunk',
       });
       persistMatchResult(state, endResult.winnerId);
-      saveMatchRecapAndEvaluateAchievements(state, endResult.winnerId);
       deleteMatch(matchId);
       return;
     }
@@ -784,7 +723,6 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
         reason: 'questions_exhausted',
       });
       persistMatchResult(state, endResult.winnerId);
-      saveMatchRecapAndEvaluateAchievements(state, endResult.winnerId);
       deleteMatch(matchId);
       return;
     }
@@ -820,46 +758,13 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 
-  // ── match.cheat_warning ────────────────────────────────────────────────────
-  socket.on('match.cheat_warning', (payload: { matchId: string }) => {
-    const { matchId } = payload;
-    const state = getMatch(matchId);
-    if (!state) return;
-
-    if (!state.cheatWarnings) {
-      state.cheatWarnings = {};
-    }
-    const currentWarnings = (state.cheatWarnings[socketUserId] || 0) + 1;
-    state.cheatWarnings[socketUserId] = currentWarnings;
-
-    if (currentWarnings >= 3) {
-      const opponent = state.players.find(p => p !== socketUserId) ?? null;
-      const endResult = endMatch(state);
-
-      emitToMatch(io, state, 'match.end', {
-        winnerId: opponent,
-        scores: endResult.scores,
-        reason: 'cheating',
-      });
-
-      persistMatchResult(state, opponent);
-      saveMatchRecapAndEvaluateAchievements(state, opponent);
-      deleteMatch(matchId);
-    } else {
-      emitToMatch(io, state, 'match.cheat_warning_update', {
-        cheatWarnings: state.cheatWarnings,
-      });
-    }
-  });
-
   // ── match.forfeit ──────────────────────────────────────────────────────────
   socket.on('match.forfeit', (payload: { matchId: string; userId: string; reason?: string }) => {
-    const { matchId, reason } = payload;
-    const forfeitUserId = socketUserId;
+    const { matchId, userId, reason } = payload;
     const state = getMatch(matchId);
     if (!state) return;
 
-    const opponent = state.players.find(p => p !== forfeitUserId) ?? null;
+    const opponent = state.players.find(p => p !== userId) ?? null;
     const endResult = endMatch(state);
 
     emitToMatch(io, state, 'match.end', {
@@ -869,7 +774,6 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     });
 
     persistMatchResult(state, opponent);
-    saveMatchRecapAndEvaluateAchievements(state, opponent);
     deleteMatch(matchId);
   });
 
@@ -890,4 +794,3 @@ export function registerMatchHandlers(io: Server, socket: Socket): void {
     }
   });
 }
-// Trigger rebuild

@@ -7,7 +7,6 @@ import { useFriendStore } from '../store/friendStore';
 import { v4 as uuidv4 } from 'uuid';
 import { initSocket } from '../services/socket';
 import axios from 'axios';
-import AchievementsPanel from '../components/AchievementsPanel';
 
 const API = (import.meta.env.VITE_API_URL ?? 'https://medhax-2.onrender.com') + '/api';
 
@@ -165,11 +164,6 @@ export default function DashboardPage() {
                 <div className="avatar avatar-xl">{user?.handle?.[0]?.toUpperCase()}</div>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 800 }}>{user?.handle}</div>
-                  {user?.active_title && (
-                    <div style={{ fontSize: 12, color: 'var(--indigo-light)', fontWeight: 600, marginTop: 2 }}>
-                      « {user.active_title} »
-                    </div>
-                  )}
                   <div className="badge badge-indigo" style={{ marginTop: 6 }}>
                     🏅 {wins >= 20 ? 'Grandmaster' : wins >= 10 ? 'Veteran' : wins >= 5 ? 'Challenger' : 'Rookie'}
                   </div>
@@ -188,9 +182,6 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-
-            {/* Achievements Panel */}
-            <AchievementsPanel />
 
             {/* Friends pending */}
             {pendingRequests.length > 0 && (

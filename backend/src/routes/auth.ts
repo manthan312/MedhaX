@@ -124,12 +124,11 @@ router.post('/login', async (req: Request, res: Response) => {
     // Fetch user profile from DB
     const { data: dbUser } = await supabaseAdmin.database
       .from('users')
-      .select('handle, active_title')
+      .select('handle')
       .eq('id', userId)
       .maybeSingle();
 
     const username = (dbUser as any)?.handle ?? userEmail.split('@')[0];
-    const activeTitle = (dbUser as any)?.active_title ?? null;
 
     const token = jwt.sign(
       { sub: userId, email: userEmail, handle: username },
@@ -138,7 +137,7 @@ router.post('/login', async (req: Request, res: Response) => {
     );
 
     res.json({
-      user: { id: userId, handle: username, username, email: userEmail, active_title: activeTitle },
+      user: { id: userId, handle: username, username, email: userEmail },
       token,
     });
   } catch (err: any) {
@@ -187,7 +186,7 @@ router.get('/me', async (req: Request, res: Response) => {
     // Fetch user profile from DB
     const { data, error } = await supabaseAdmin.database
       .from('users')
-      .select('id, handle, email_hash, created_at, active_title')
+      .select('id, handle, email_hash, created_at')
       .eq('id', userId);
 
     if (error) {

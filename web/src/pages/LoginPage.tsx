@@ -63,7 +63,7 @@ export default function LoginPage() {
 
           <div className="text-center" style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 24 }}>
             Don't have an account?{' '}
-            <Link to={searchParams.get('redirect') ? `/signup?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/signup'} style={{ color: 'var(--indigo-light)', fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/signup" style={{ color: 'var(--indigo-light)', fontWeight: 600, textDecoration: 'none' }}>
               Create one free →
             </Link>
           </div>
